@@ -1,0 +1,40 @@
+## Interface: 16001
+## Title: XPBar Island
+## Notes: Experience, reputation, honor, pet experience and skills in one island flush to the top of the screen.|nSaved variable: XPBarIslandDB
+## Author: Matt
+## X-Website: https://x.com/mainlek
+## Version: 1.0.5
+## SavedVariables: XPBarIslandDB
+## IconTexture: Interface\AddOns\XPBarIsland\Media\RadialDark
+
+Locale\enUS.lua
+Core\Capabilities.lua
+Core\Media.lua
+Core\Fonts.lua
+Core\Util.lua
+Core\Report.lua
+Core\Init.lua
+Core\Events.lua
+Core\Comms.lua
+Core\Share.lua
+Data\XP.lua
+Data\Quests.lua
+Data\Reputation.lua
+Data\Honor.lua
+Data\PetXP.lua
+Data\Skills.lua
+Data\Spells.lua
+Data\Milestones.lua
+Data\Data.lua
+UI\Bar.lua
+UI\Island.lua
+UI\Streak.lua
+UI\Panel.lua
+UI\Gain.lua
+UI\LevelUp.lua
+UI\Tooltip.lua
+UI\Minimap.lua
+Settings\Widgets.lua
+Settings\Settings.lua
+Core\Slash.lua
+Core\Boot.lua

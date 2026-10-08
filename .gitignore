@@ -1,0 +1,5 @@
+# Agent tooling cache (dependencies, goal state) - never ship or publish
+.opencode/
+
+# Internal fix workshop
+XPBar Fix Kit/

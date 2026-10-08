@@ -1,0 +1,14 @@
+Copyright 2013 The Alegreya Sans Project Authors (https://github.com/huertatipografica/Alegreya-Sans),
+with Reserved Font Name "Alegreya Sans".
+Copyright 2011 The Open Sans Project Authors (https://github.com/opensans),
+with Reserved Font Name "Open Sans".
+
+AlegreyaSans-Bold.ttf, AlegreyaSans-ExtraBold.ttf and AlegreyaSans-Medium.ttf
+are licensed under the SIL Open Font License, Version 1.1 (see OFL.txt).
+
+OpenSans-Medium.ttf (shipped as UIFont-Medium.ttf) is licensed under the SIL
+Open Font License, Version 1.1 (see OFL.txt).
+
+OpenSans-Bold.ttf and OpenSans-Extrabold.ttf (shipped as UIFont-Bold.ttf and
+UIFont-ExtraBold.ttf) are licensed under the Apache License, Version 2.0
+(see LICENSE-OpenSans-Apache-2.0.txt).
