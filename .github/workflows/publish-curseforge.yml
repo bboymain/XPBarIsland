@@ -1,1 +1,45 @@
 
+name: Publish XPBar Island to CurseForge
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Package and publish WoW addon
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the tagged addon release
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare a clean addon package
+        run: |
+          cat > .pkgmeta <<'PKGMETA'
+          package-as: XPBarIsland
+          ignore:
+            - .github
+            - .gitignore
+            - README.md
+            - CHANGELOG.md
+            - CURSEFORGE.md
+            - KNOWN_GAPS.md
+            - tools
+            - logo.png
+            - .opencode
+            - XPBar Fix Kit
+          PKGMETA
+
+      - name: Upload tagged release to CurseForge
+        uses: BigWigsMods/packager@v2
+        with:
+          args: -p 1728478
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
