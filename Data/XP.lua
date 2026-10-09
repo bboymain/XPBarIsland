@@ -371,23 +371,26 @@ local function requestPlayed()
 end
 ns.RequestPlayed = requestPlayed
 
--- Hide the stock "time played" chat lines for our own requests only, so a
--- manually typed /played still prints for comparison.
+-- Suppress only played-time output. Replacing AddMessage taints Blizzard's
+-- caller, including the protected battleground join/leave message queues.
 local function suppressPlayedChat()
-    if ns._timePlayedHooked or not (ChatFrame1 and ChatFrame1.AddMessage) then return end
-    ns._timePlayedHooked = true
-    local orig = ChatFrame1.AddMessage
-    ChatFrame1.AddMessage = function(self, ...)
-        if ns._suppressPlayed and GetTime() <= ns._suppressPlayed then
-            local msg = tostring((select(1, ...)) or ""):lower()
-            if msg:find("time played", 1, true)
-                and (msg:find("minute", 1, true) or msg:find("second", 1, true)
-                    or msg:find("hour", 1, true) or msg:find("day", 1, true)) then
-                return
-            end
+    if ns._timePlayedHooked then return end
+    local function wrap(orig)
+        return function(...)
+            if ns._suppressPlayed and GetTime() <= ns._suppressPlayed then return end
+            return orig(...)
         end
-        return orig(self, ...)
     end
+    local hooked = false
+    if _G.ChatFrameUtil and type(ChatFrameUtil.DisplayTimePlayed) == "function" then
+        ChatFrameUtil.DisplayTimePlayed = wrap(ChatFrameUtil.DisplayTimePlayed)
+        hooked = true
+    end
+    if type(_G.ChatFrame_DisplayTimePlayed) == "function" then
+        ChatFrame_DisplayTimePlayed = wrap(ChatFrame_DisplayTimePlayed)
+        hooked = true
+    end
+    ns._timePlayedHooked = hooked
 end
 
 -- Refresh "played" on every login, reload and zone, then keep it fresh every
