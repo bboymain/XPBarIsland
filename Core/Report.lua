@@ -24,7 +24,7 @@ function ns.AddonVersion()
         local ok, res = pcall(_G.GetAddOnMetadata, ADDON, "Version")
         if ok then v = res end
     end
-    return tostring(v or "1.0.8")
+    return tostring(v or "1.0.9")
 end
 
 -- ===========================================================================
@@ -589,6 +589,7 @@ ns.changelog = {
     ["1.0.6"] = "Skills show your professions again on the latest client, plus a Hide out of combat option and a level-up stats card.",
     ["1.0.7"] = "The collapsed bar no longer lets the Resting tag overlap the bars-to-level text.",
     ["1.0.8"] = "New Level-up summary toggle under Behavior if you want the stats card off.",
+    ["1.0.9"] = "Battleground chat and next-spell tooltip fixes, thanks to @dstjohniii.",
 }
 
 local tip

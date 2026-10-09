@@ -2,6 +2,13 @@
 
 Every update to XPBar Island, in plain (and slightly caffeinated) English.
 
+## 1.0.9: The "Helping Hands" Update
+
+Thanks to **@dstjohniii** for both fixes in this release.
+
+* **Fixed: battleground chat taint** - the /played chat suppression no longer overrides `ChatFrame1.AddMessage`, so protected battleground join and leave messages are not blocked any more, and repeated join messages stop. (Thanks @dstjohniii!)
+* **Fixed: next-spell tooltip and layout** - the "+N" spell tooltip now lists only the spells you cannot already see, and the row makes room for the `+N` badge instead of overflowing. The visible count also stays stable while the panel opens. (Thanks @dstjohniii!)
+
 ## 1.0.8: The "Your Call" Update
 
 * **New: a "Level-up summary" toggle** (Settings > Behavior). The stats card that appears under the island when you level up can now be switched off if you only want the celebration, or kept on if you like seeing exactly what the level gave you. On by default.
