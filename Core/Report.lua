@@ -24,7 +24,7 @@ function ns.AddonVersion()
         local ok, res = pcall(_G.GetAddOnMetadata, ADDON, "Version")
         if ok then v = res end
     end
-    return tostring(v or "1.0.6")
+    return tostring(v or "1.0.7")
 end
 
 -- ===========================================================================
@@ -587,6 +587,7 @@ ns.changelog = {
     ["1.0.2"] = "Move mode now lets you drag the island anywhere on screen.",
     ["1.0.4"] = "New installs now default to the WoW Forever theme. Kill-streak tiers (off by default), a compact under-island announcement (no sound), a one-click bug-report copy popup, and X/CurseForge logo links.",
     ["1.0.6"] = "Skills show your professions again on the latest client, plus a Hide out of combat option and a level-up stats card.",
+    ["1.0.7"] = "The collapsed bar no longer lets the Resting tag overlap the bars-to-level text.",
 }
 
 local tip

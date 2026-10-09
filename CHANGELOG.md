@@ -2,6 +2,10 @@
 
 Every update to XPBar Island, in plain (and slightly caffeinated) English.
 
+## 1.0.7: The "Personal Space" Update
+
+* **Fixed: the blue "Resting" tag could overlap "X bars to level up"** on the collapsed bar (GitHub issue #1 - thanks @andoys). The row now measures the Resting tag and the quest XP text when fitting, and drops the current / max text or shortens the bars text instead of letting them collide.
+
 ## 1.0.6: The "Fight Club" Update
 
 * **Fixed: "No skill lines / Train a profession" on Skills even though you have professions.** The latest client update changed how skill and profession data is exposed. The island now reads every API the client offers - the classic skill lines, the new `C_SkillInfo` lines and the `C_TradeSkillUI` professions - and merges them, so your professions show up again. Nothing to sync, nothing to reload twice.

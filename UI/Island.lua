@@ -450,25 +450,52 @@ end
 function island:UpdateBarsText(pct)
     local ok, err = pcall(function()
         if not self.barsFS then return end
-        if self.thin or (ns.db and ns.db.barsText == false) then self.barsFS:Hide(); return end
-        local p = ns.clamp(pct or 0, 0, 1)
-        local bars = math.max(0, math.ceil((1 - p) * 20))
-        local long = (bars == 1) and "1 bar to level up" or (bars .. " bars to level up")
-        local short = bars .. " bars"
-        self.barsFS:SetText(long)
-        self.barsFS:Show()
-        -- fit: drop the range first, then shorten the bars text
+        if self.thin then self.barsFS:Hide(); return end
+        local showBars = not (ns.db and ns.db.barsText == false)
+        if showBars then
+            local p = ns.clamp(pct or 0, 0, 1)
+            local bars = math.max(0, math.ceil((1 - p) * 20))
+            self.barsFS._long = (bars == 1) and "1 bar to level up" or (bars .. " bars to level up")
+            self.barsFS._short = bars .. " bars"
+            self.barsFS:SetText(self.barsFS._long)
+            self.barsFS:Show()
+        else
+            self.barsFS:SetText("")
+            self.barsFS:Hide()
+        end
+
+        -- fit: drop the range first, then shorten the bars text, then drop it
         local colW = self.col:GetWidth() or 0
+        if colW <= 0 then return end
         local gap = 8
-        local nameW = (self.nameFS:GetStringWidth() or 0)
-        local pctW = (self.pctFS:GetStringWidth() or 0)
-        local rangeW = (self.rangeFS:GetStringWidth() or 0) + 6
-        local barsW = self.barsFS:GetStringWidth() or 0
-        if nameW + rangeW + barsW + pctW + gap * 2 > colW then
+        local nameW = (self.nameFS:IsShown() and (self.nameFS:GetStringWidth() or 0)) or 0
+        local pctW = (self.pctFS:IsShown() and (self.pctFS:GetStringWidth() or 0)) or 0
+        local rangeW = 0
+        if self.rangeFS:IsShown() and (self.rangeFS:GetStringWidth() or 0) > 0 then
+            rangeW = (self.rangeFS:GetStringWidth() or 0) + 6
+        end
+        local restW = 0
+        if self.restTag:IsShown() and (self.restTag:GetAlpha() or 0) > 0.05 then
+            restW = (self.restTag:GetStringWidth() or 0) + 8
+        end
+        local qpW = 0
+        if self.qpFS:IsShown() and (self.qpFS:GetAlpha() or 0) > 0.05 then
+            qpW = (self.qpFS:GetStringWidth() or 0) + 8
+        end
+        local barsW = (showBars and (self.barsFS:GetStringWidth() or 0)) or 0
+        local function over()
+            return nameW + rangeW + restW + qpW + barsW + pctW + gap * 2 > colW
+        end
+        if over() then
             self.rangeFS:SetText("")
             rangeW = 0
-            if nameW + barsW + pctW + gap * 2 > colW then
-                self.barsFS:SetText(short)
+            if over() and showBars then
+                self.barsFS:SetText(self.barsFS._short)
+                barsW = self.barsFS:GetStringWidth() or 0
+            end
+            if over() and showBars then
+                self.barsFS:SetText("")
+                self.barsFS:Hide()
             end
         end
     end)
@@ -1228,6 +1255,7 @@ function island:UpdateNow(d)
     self.qpFS:SetText((d.questTotal and d.questTotal > 0) and ("+" .. ns.Comma(d.questTotal) .. " XP") or "")
     self.qpFS:SetAlpha((d.key == "xp" and d.questTotal and d.questTotal > 0) and 1 or 0)
     self.restTag:SetAlpha((ns.db.showRested ~= false and d.key == "xp" and d.resting) and 1 or 0)
+    if d.key == "xp" then self:UpdateBarsText(d.pct) end
 
     self:UpdateMoveOutline()
 
