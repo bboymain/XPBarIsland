@@ -1287,12 +1287,17 @@ end
 -- ---------------------------------------------------------------------------
 -- Open / close tween
 -- ---------------------------------------------------------------------------
-function island:TargetSize(open)
+function island:TargetWidth(open)
     local w = (ns.db and ns.db.width) or C_W
+    return open and math.max(620, w + 160) or w
+end
+
+function island:TargetSize(open)
+    local w = self:TargetWidth(open)
     local th = (ns.db and ns.db.barThickness) or 12
     if open then
         local ph = (ns.panel and ns.panel.NeededHeight and ns.panel:NeededHeight()) or 268
-        return math.max(620, w + 160), ph
+        return w, ph
     end
     if (ns.db.mode == "Classic") then
         return w, THIN_H

@@ -865,10 +865,12 @@ local function partySignature(members)
     return table.concat(parts, "|")
 end
 
--- Draws the next-level spells as icon + name chips in the footer.  They flow
--- left to right and wrap to extra lines, so a long list stays readable.
+-- Draws one row of next-level spell chips, with a +N chip for overflow.
 -- Returns the height used (0 when there is nothing to show).
 function panel:LayoutSpells(d, innerW, top)
+    -- Use the final open width so the visible spells and +N count stay
+    -- stable while the island expands or its spring animation overshoots.
+    innerW = ns.island:TargetWidth(true) - PAD * 2
     local spells = (d and d.spells) or {}
     local lvl = d and d.nextSpellLevel
     if not lvl or #spells == 0 then
@@ -908,6 +910,14 @@ function panel:LayoutSpells(d, innerW, top)
         x = x + w + 6
         shown = i
     end
+    -- If spells overflow, move trailing chips into the tooltip until the
+    -- +N badge and its gap also fit inside the row.
+    if overflow then
+        while shown > 0 and x + 2 + plusW > avail do
+            x = x - spellChips[shown]:GetWidth() - 6
+            shown = shown - 1
+        end
+    end
     for i = shown + 1, #spellChips do spellChips[i]:Hide() end
 
     local endX = tagW + 10 + x
@@ -916,7 +926,12 @@ function panel:LayoutSpells(d, innerW, top)
         local p = spellPlus or makePlusChip()
         p.label:SetText("+" .. rest)
         p:SetWidth(plusW)
-        p.list = spells
+
+        -- List only hidden spells so the tooltip matches +N without repeating visible chips.
+        p.list = {}
+        for i = shown + 1, #spells do
+            p.list[#p.list + 1] = spells[i]
+        end
         p:ClearAllPoints()
         p:SetPoint("LEFT", spellStrip, "LEFT", endX + 2, 0)
         p:Show()
