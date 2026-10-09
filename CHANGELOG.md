@@ -2,6 +2,10 @@
 
 Every update to XPBar Island, in plain (and slightly caffeinated) English.
 
+## 1.0.8: The "Your Call" Update
+
+* **New: a "Level-up summary" toggle** (Settings > Behavior). The stats card that appears under the island when you level up can now be switched off if you only want the celebration, or kept on if you like seeing exactly what the level gave you. On by default.
+
 ## 1.0.7: The "Personal Space" Update
 
 * **Fixed: the blue "Resting" tag could overlap "X bars to level up"** on the collapsed bar (GitHub issue #1 - thanks @andoys). The row now measures the Resting tag and the quest XP text when fitting, and drops the current / max text or shortens the bars text instead of letting them collide.

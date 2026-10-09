@@ -190,6 +190,7 @@ local function onLevelUp(level)
     local cur = readStats()
     local prev = baseline
     baseline = cur
+    if ns.db.levelUpSummary == false then return end
     if not prev then return end
     if not islandFrame:IsShown() then return end
     if (islandFrame:GetAlpha() or 1) < 0.1 then return end

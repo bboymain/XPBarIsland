@@ -174,6 +174,7 @@ ns.defaults = {
     partyMotion  = true,
     tips         = true,
     levelUpFx    = true,            -- Agent Kit: Supernova level-up animation
+    levelUpSummary = true,          -- stats card under the island on level-up
     -- thin (Minimal) bar
     mLevel       = true, mName = true, mPct = true, mBars = true, mGain = true,
     mStreak      = true, mRested = true, mRate = false, mEta = false,
