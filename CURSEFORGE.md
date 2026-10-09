@@ -106,9 +106,11 @@ FEATURES
 - Display modes: Full, Classic (thin bar), Auto-hide, and Always open.
 - XP bar effects: animated fill, count-up numbers, gain flash, edge glint,
   segment flashes, charge-up glow and a kill-streak tag.
-- Level-up celebration with a flash, badge pop, rings, banner and sound.
+- Level-up celebration with a flash, badge pop, rings, banner and sound, plus a
+  level-up summary card showing the health, mana and attribute gains, talent
+  points and any spells waiting at your trainer.
 - Optional "Fade until hovered" so the island stays faint until you mouse over it.
-- "Hide in combat" and "Hide the default XP and rep bars" options (on by default).
+- "Hide in combat", "Hide out of combat" and "Hide the default XP and rep bars" options (on by default).
 - A live session graph of your XP gains.
 - Optional minimap button (hidden by default), movable island, scale control and named profiles
   (switch per character, and per spec where supported).

@@ -12,6 +12,8 @@ APIs that may not exist on every client are probed in `Core/Capabilities.lua` or
 | `Texture:SetRotation` | UI/Bar.lua, UI/Panel.lua | milestone diamond / sparkline drawn unrotated |
 | `Frame:SetClipsChildren` | UI/Bar.lua (shine), UI/Island.lua (mini badge) | shine band stays within the fill by construction; no clipping |
 | `GetXPExhaustion` | Data/XP.lua | rested shows 0 |
+| `GetNumSkillLines`/`GetSkillLineInfo`, `GetProfessions`/`GetProfessionInfo`, `C_SkillInfo` lines, `C_TradeSkillUI` professions | Data/Skills.lua, Core/Capabilities.lua | every source the client provides is merged with names deduplicated; Skills shows the empty state only when the client exposes none |
+| `UnitHealthMax` / `UnitPowerMax` / `UnitStat` / talent points (level-up summary) | UI/LevelUpSummary.lua | rows without data are dropped; talent line uses the classic 1-point-per-level rule (level 10+), spells come from Data/Spells.lua |
 | `GetQuestLogRewardXP` + `SelectQuestLogEntry` + `GetQuestLogSelection` | Data/Quests.lua | quest XP scan degrades to log counts |
 | `GetWatchedFactionInfo` / `C_Reputation.GetWatchedFactionData` / `GetNumFactions`+`GetFactionInfo` | Capabilities.lua, Data/Reputation.lua | modern clients read `C_Reputation` (`currentStanding` + thresholds); if nothing is watched the view auto-picks one known faction (session-stable, all calls pcalled); only when every list API is missing does it show the empty state |
 | `UnitHonor` / `UnitHonorMax` / `UnitHonorLevel` / `GetHonorLevel` | Data/Honor.lua | `GetPVPRankInfo`/`UnitPVPRank` rank; `GetPVPThisWeekStats` week honour; else honour chip hides |

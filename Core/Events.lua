@@ -85,8 +85,16 @@ function ns.RefreshUI() end -- replaced in Boot.lua
 -- Combat state (used by hide-in-combat and auto-switch).
 -- ---------------------------------------------------------------------------
 ns.inCombat = false
-ns.On("PLAYER_REGEN_DISABLED", function() ns.inCombat = true; ns.MarkDirty() end)
-ns.On("PLAYER_REGEN_ENABLED", function() ns.inCombat = false; ns.MarkDirty() end)
+ns.On("PLAYER_REGEN_DISABLED", function()
+    ns.inCombat = true
+    if ns.db and ns.island and ns.island.UpdateFade then ns.island:UpdateFade() end
+    ns.MarkDirty()
+end)
+ns.On("PLAYER_REGEN_ENABLED", function()
+    ns.inCombat = false
+    if ns.db and ns.island and ns.island.UpdateFade then ns.island:UpdateFade() end
+    ns.MarkDirty()
+end)
 
 ns.On("PLAYER_ENTERING_WORLD", function()
     ns.MarkDirty()

@@ -33,6 +33,18 @@ API.GetSkillLineInfo     = fn("GetSkillLineInfo")
 -- modern-engine clients replaced the skill-line pair with the professions API
 API.GetProfessions       = fn("GetProfessions")
 API.GetProfessionInfo    = fn("GetProfessionInfo")
+-- newest clients (12.0 engine) expose skill lines and professions through
+-- C_SkillInfo and C_TradeSkillUI instead
+local skillInfo = _G.C_SkillInfo
+API.CSkillInfoGetNumSkillLines = (skillInfo and type(skillInfo.GetNumSkillLines) == "function")
+    and skillInfo.GetNumSkillLines or nil
+API.CSkillInfoGetSkillLineInfo = (skillInfo and type(skillInfo.GetSkillLineInfo) == "function")
+    and skillInfo.GetSkillLineInfo or nil
+local tradeSkill = _G.C_TradeSkillUI
+API.GetAllProfessionTradeSkillLines = (tradeSkill and type(tradeSkill.GetAllProfessionTradeSkillLines) == "function")
+    and tradeSkill.GetAllProfessionTradeSkillLines or nil
+API.GetProfessionInfoBySkillLineID = (tradeSkill and type(tradeSkill.GetProfessionInfoBySkillLineID) == "function")
+    and tradeSkill.GetProfessionInfoBySkillLineID or nil
 API.GetPVPRankInfo       = fn("GetPVPRankInfo")
 API.UnitPVPRank          = fn("UnitPVPRank")
 API.GetPVPThisWeekStats  = fn("GetPVPThisWeekStats")

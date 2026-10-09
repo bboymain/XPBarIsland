@@ -2,6 +2,12 @@
 
 Every update to XPBar Island, in plain (and slightly caffeinated) English.
 
+## 1.0.6: The "Fight Club" Update
+
+* **Fixed: "No skill lines / Train a profession" on Skills even though you have professions.** The latest client update changed how skill and profession data is exposed. The island now reads every API the client offers - the classic skill lines, the new `C_SkillInfo` lines and the `C_TradeSkillUI` professions - and merges them, so your professions show up again. Nothing to sync, nothing to reload twice.
+* **New: "Hide out of combat"** (Settings > Behavior). The island fades out while you are out of combat and fades back in the moment a fight starts. Handy for screenshots, roleplay, or a calmer questing HUD. "Hide in combat" now fades just as smoothly, so both options work either way round.
+* **New: a level-up summary card.** Ding and a small card appears under the island with the health, mana and attribute gains for the level, plus the talent point and any spells waiting at your trainer.
+
 ## 1.0.5: The "Squash Them All" Update
 
 **Bug fixes.**

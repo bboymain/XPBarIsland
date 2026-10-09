@@ -1282,6 +1282,7 @@ function island:UpdateNow(d)
     end
 
     if ns.Tooltip then ns.Tooltip:Update(d) end
+    self:UpdateFade()
 end
 
 -- ---------------------------------------------------------------------------
@@ -1446,8 +1447,38 @@ end
 -- ---------------------------------------------------------------------------
 -- Fade / combat / mode
 -- ---------------------------------------------------------------------------
+local COMBAT_FADE = 0.25
+
+function island:StopCombatFade()
+    if self._combatFadeTween then ns.KillTween(self._combatFadeTween); self._combatFadeTween = nil end
+    self._combatFadeTo = nil
+end
+
+function island:SetCombatFade(target)
+    if self._combatFadeTween then
+        if self._combatFadeTo == target then return end
+        ns.KillTween(self._combatFadeTween)
+        self._combatFadeTween = nil
+    end
+    self._combatFadeTo = target
+    local from = f:GetAlpha() or 0
+    if (ns.db.animations == "Off") or math.abs(from - target) < 0.001 then
+        f:SetAlpha(target)
+        return
+    end
+    self._combatFadeTween = ns.Tween({
+        dur = COMBAT_FADE, from = from, to = target, ease = ns.easeOutCubic,
+        set = function(v) f:SetAlpha(v) end,
+        done = function()
+            f:SetAlpha(target)
+            self._combatFadeTween = nil
+        end,
+    })
+end
+
 function island:UpdateFade()
     if not ns.db.enabled then
+        self:StopCombatFade()
         f:SetAlpha(0)
         f:EnableMouse(false)
         return
@@ -1456,15 +1487,24 @@ function island:UpdateFade()
 
     -- while the settings panel is open the island stays visible and collapsed
     if self.previewOpen then
+        self:StopCombatFade()
         f:SetAlpha(1)
         if self.hoverStrip then self.hoverStrip:Hide() end
         return
     end
 
     if ns.db.hideCombat and ns.inCombat then
-        f:SetAlpha(0)
+        self:SetCombatFade(0)
         return
     end
+
+    -- "Hide out of combat": fade away while relaxed, fade back in when fighting
+    if ns.db.hideOutOfCombat then
+        f:EnableMouse(ns.inCombat)
+        self:SetCombatFade(ns.inCombat and 1 or 0)
+        return
+    end
+    self:StopCombatFade()
 
     -- Auto-hide: slide the island up off the top edge; a thin strip brings it back
     local hy = (ns.db.mode == "Auto-hide" and not self.expanded) and 60 or 0
@@ -1483,7 +1523,13 @@ function island:UpdateFade()
     -- "Fade until hovered": faint while the mouse is away and the island is
     -- collapsed; full alpha on hover or while the panel is open.
     local dim = ns.db.fade and not self.mouseOver and not self.expanded
-    f:SetAlpha(dim and FADE_ALPHA or 1)
+    local base = dim and FADE_ALPHA or 1
+    -- "Hide in combat" restores smoothly once the fight is over
+    if ns.db.hideCombat then
+        self:SetCombatFade(base)
+        return
+    end
+    f:SetAlpha(base)
 end
 
 -- The island's only scale is the Size setting.  The gain dip is a translate

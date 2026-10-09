@@ -13,19 +13,19 @@ local TYPE_ORDER = { "xp", "rep", "honor", "pet", "skills" }
 local PRESETS = {
     Minimal = {
         types = { xp = true },
-        hideCombat = true, fade = true, compact = true, autoSwitch = false,
+        hideCombat = true, hideOutOfCombat = false, fade = true, compact = true, autoSwitch = false,
         sparkline = false, party = false, questList = false,
         mode = "Classic", hoverExpand = false,
     },
     Standard = {
         types = { xp = true, rep = true, honor = true, pet = true, skills = true },
-        hideCombat = false, fade = false, compact = true, autoSwitch = true,
+        hideCombat = false, hideOutOfCombat = false, fade = false, compact = true, autoSwitch = true,
         sparkline = true, party = true, questList = true,
         mode = "Full", hoverExpand = false,
     },
     Full = {
         types = { xp = true, rep = true, honor = true, pet = true, skills = true },
-        hideCombat = false, fade = false, compact = false, autoSwitch = true,
+        hideCombat = false, hideOutOfCombat = false, fade = false, compact = false, autoSwitch = true,
         sparkline = true, party = true, questList = true,
         mode = "Always open", hoverExpand = false,
     },
@@ -151,7 +151,7 @@ local function CreatePage(parent, width, height)
     ns.Paint(fl, 0, 0, 0, 1)
     page.version = fs(foot, 11, (ns.Theme().grey or "#8F8777"), "LEFT", "medium")
     page.version:SetPoint("LEFT", foot, "LEFT", 0, 0)
-    page.version:SetText("XPBar Island 1.0.4")
+    page.version:SetText("XPBar Island " .. ((ns.AddonVersion and ns.AddonVersion()) or "1.0.6"))
     page.contact = W.IconLink(foot, ns.Media.xIcon, ns.OpenContact, "Contact @mainlek on X.com (Twitter)", "Click to copy the link")
     page.contact:SetPoint("LEFT", page.version, "RIGHT", 16, 0)
     page.curseforge = W.IconLink(foot, ns.Media.curseforgeIcon, ns.OpenCurseForge, "CurseForge page", "Click to copy the link")
@@ -347,6 +347,8 @@ end
 local function buildBehavior(page)
     page:addRow(W.Checkbox(page.content, "Hide in combat", "Fade the island out while fighting",
         function() return ns.db.hideCombat end, function(v) setAndRefresh("hideCombat", v) end))
+    page:addRow(W.Checkbox(page.content, "Hide out of combat", "Fade the island out while not fighting",
+        function() return ns.db.hideOutOfCombat end, function(v) setAndRefresh("hideOutOfCombat", v) end))
     page:addRow(W.Checkbox(page.content, "Fade until hovered", "Keep the island faint until the mouse is over it",
         function() return ns.db.fade end, function(v) setAndRefresh("fade", v); if ns.island then ns.island:UpdateFade() end end))
     page:addRow(W.Checkbox(page.content, "Hide default XP and rep bars", "Use only the island for XP and reputation",
@@ -636,7 +638,7 @@ end
 
 local QP_PRESETS = {
     Minimal = {
-        mode = "Classic", hideCombat = true, fade = true, compact = true, autoSwitch = false,
+        mode = "Classic", hideCombat = true, hideOutOfCombat = false, fade = true, compact = true, autoSwitch = false,
         sparkline = false, party = false, questList = false, portrait = false,
         streak = true, cometOn = true, segFlash = true, charge = true, barsText = true,
         dip = true, partyMotion = false, showDots = false, showRate = false,
@@ -644,7 +646,7 @@ local QP_PRESETS = {
         mStreak = true, mRested = true, mRate = false, mEta = false,
     },
     Standard = {
-        mode = "Full", hideCombat = false, fade = false, compact = true, autoSwitch = true,
+        mode = "Full", hideCombat = false, hideOutOfCombat = false, fade = false, compact = true, autoSwitch = true,
         sparkline = true, party = true, questList = true, portrait = true,
         cometOn = true, segFlash = true, charge = true, barsText = true, streak = true,
         dip = true, partyMotion = true,
@@ -653,7 +655,7 @@ local QP_PRESETS = {
         mStreak = true, mRested = true, mRate = false, mEta = false,
     },
     Full = {
-        mode = "Full", hideCombat = false, fade = false, compact = false, autoSwitch = true,
+        mode = "Full", hideCombat = false, hideOutOfCombat = false, fade = false, compact = false, autoSwitch = true,
         sparkline = true, party = true, questList = true, portrait = true,
         cometOn = true, segFlash = true, charge = true, barsText = true, streak = true,
         dip = true, partyMotion = true,
@@ -1079,6 +1081,7 @@ local function buildQuick()
 
     qsect("Behavior", "Behavior", "Combat, motion, level-up", function(s)
         qswitch(s, "hideCombat", "Hide in combat", "Fade out while fighting")
+        qswitch(s, "hideOutOfCombat", "Hide out of combat", "Fade out while not fighting")
         qfade(s)
         qswitch(s, "hideBlizzXp", "Hide default XP and rep bars", "Use only the island for XP and reputation")
         qswitch(s, "move", "Move mode", "Drag the island anywhere on screen")
@@ -1519,6 +1522,7 @@ local STUDIO_BUILD = {
     end,
     ["Behavior"] = function(s)
         qswitch(s, "hideCombat", "Hide in combat", "Fade out while fighting")
+        qswitch(s, "hideOutOfCombat", "Hide out of combat", "Fade out while not fighting")
         qfade(s)
         qswitch(s, "hideBlizzXp", "Hide default XP and rep bars", "Use only the island for XP and reputation")
         qswitch(s, "move", "Move mode", "Drag the island anywhere on screen")
@@ -1622,12 +1626,7 @@ local function buildStudio()
     tb:SetScript("OnDragStop", function() sw:StopMovingOrSizing() end)
     sw.title = qtext(tb, 17, "#FFD100", "LEFT"); sw.title:SetPoint("LEFT", tb, "LEFT", 14, 0); sw.title:SetText("XPBar Island")
     sw.ver = qtext(tb, 11, (ns.Theme().grey or "#8F8777"), "LEFT", "medium"); sw.ver:SetPoint("LEFT", sw.title, "RIGHT", 8, 0)
-    local ver = "1.0.4"
-    if _G.C_AddOns and C_AddOns.GetAddOnMetadata then
-        local vok, v = pcall(C_AddOns.GetAddOnMetadata, "XPBarIsland", "Version")
-        if vok and v then ver = v end
-    end
-    sw.ver:SetText(ver)
+    sw.ver:SetText((ns.AddonVersion and ns.AddonVersion()) or "1.0.6")
     local cb = CreateFrame("Frame", nil, tb); cb:SetSize(26, 26); cb:SetPoint("RIGHT", tb, "RIGHT", -10, 0)
     cb.bd = cb:CreateTexture(nil, "BORDER", nil, 1); cb.bd:SetPoint("TOPLEFT", cb, "TOPLEFT", -1, 1); cb.bd:SetPoint("BOTTOMRIGHT", cb, "BOTTOMRIGHT", 1, -1)
     ns.Paint(cb.bd, 0.29, 0.23, 0.11, 1)

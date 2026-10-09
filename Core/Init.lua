@@ -142,6 +142,7 @@ ns.defaults = {
     hoverExpand  = false,
     types        = { xp = true, rep = true, honor = true, pet = true, skills = true },
     hideCombat   = false,
+    hideOutOfCombat = false,
     fade         = false,           -- fade until hovered
     hideBlizzXp  = true,            -- hide Blizzard's XP/rep bars, use the island instead
     compact      = true,

@@ -24,7 +24,7 @@ function ns.AddonVersion()
         local ok, res = pcall(_G.GetAddOnMetadata, ADDON, "Version")
         if ok then v = res end
     end
-    return tostring(v or "1.0.4")
+    return tostring(v or "1.0.6")
 end
 
 -- ===========================================================================
@@ -241,7 +241,7 @@ ns.reportLink = "https://www.curseforge.com/wow/addons/xpbar-island/comments"
 
 local EFFECT_KEYS = {
     "animations", "feel", "barFx", "cometOn", "segFlash", "charge",
-    "barsText", "streak", "dip", "partyMotion", "hideCombat",
+    "barsText", "streak", "dip", "partyMotion", "hideCombat", "hideOutOfCombat",
     "autoSwitch", "sparkline", "party", "questList", "portrait",
 }
 
@@ -545,7 +545,7 @@ function ns.SafeMode()
         safeKeys = safeKeys or {}
         local keys = {
             "mode", "animations", "cometOn", "segFlash", "charge", "streak",
-            "dip", "partyMotion", "barFx", "hideCombat", "autoSwitch",
+            "dip", "partyMotion", "barFx", "hideCombat", "hideOutOfCombat", "autoSwitch",
             "sparkline", "party", "questList", "portrait", "showRate", "showDots",
             "compact", "hoverExpand", "scale",
             "mLevel", "mName", "mPct", "mBars", "mGain", "mStreak", "mRested", "mRate", "mEta",
@@ -555,7 +555,7 @@ function ns.SafeMode()
         end
         -- Minimal preset
         ns.db.mode = "Classic"
-        ns.db.hideCombat = true; ns.db.compact = true; ns.db.autoSwitch = false
+        ns.db.hideCombat = true; ns.db.hideOutOfCombat = false; ns.db.compact = true; ns.db.autoSwitch = false
         ns.db.sparkline = false; ns.db.party = false; ns.db.questList = false; ns.db.portrait = false
         ns.db.showDots = false; ns.db.showRate = false
         ns.db.mLevel = true; ns.db.mName = true; ns.db.mPct = true; ns.db.mBars = true
@@ -586,6 +586,7 @@ ns.changelog = {
     ["1.0.1"] = "Blizzard's XP and rep bars are now hidden by default, professions show on Skills, and there's a pin button plus a tidier (hidden-by-default) minimap button.",
     ["1.0.2"] = "Move mode now lets you drag the island anywhere on screen.",
     ["1.0.4"] = "New installs now default to the WoW Forever theme. Kill-streak tiers (off by default), a compact under-island announcement (no sound), a one-click bug-report copy popup, and X/CurseForge logo links.",
+    ["1.0.6"] = "Skills show your professions again on the latest client, plus a Hide out of combat option and a level-up stats card.",
 }
 
 local tip
