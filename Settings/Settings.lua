@@ -347,7 +347,7 @@ end
 local function buildBehavior(page)
     page:addRow(W.Checkbox(page.content, "Hide in combat", "Fade the island out while fighting",
         function() return ns.db.hideCombat end, function(v) setAndRefresh("hideCombat", v) end))
-    page:addRow(W.Checkbox(page.content, "Hide out of combat", "Fade the island out while not fighting",
+    page:addRow(W.Checkbox(page.content, "Hide out of combat", "Show final XP, then fade out; hover nearby to reveal",
         function() return ns.db.hideOutOfCombat end, function(v) setAndRefresh("hideOutOfCombat", v) end))
     page:addRow(W.Checkbox(page.content, "Fade until hovered", "Keep the island faint until the mouse is over it",
         function() return ns.db.fade end, function(v) setAndRefresh("fade", v); if ns.island then ns.island:UpdateFade() end end))
@@ -1083,7 +1083,7 @@ local function buildQuick()
 
     qsect("Behavior", "Behavior", "Combat, motion, level-up", function(s)
         qswitch(s, "hideCombat", "Hide in combat", "Fade out while fighting")
-        qswitch(s, "hideOutOfCombat", "Hide out of combat", "Fade out while not fighting")
+        qswitch(s, "hideOutOfCombat", "Hide out of combat", "Show final XP, fade out; hover near to reveal")
         qfade(s)
         qswitch(s, "hideBlizzXp", "Hide default XP and rep bars", "Use only the island for XP and reputation")
         qswitch(s, "move", "Move mode", "Drag the island anywhere on screen")
@@ -1525,7 +1525,7 @@ local STUDIO_BUILD = {
     end,
     ["Behavior"] = function(s)
         qswitch(s, "hideCombat", "Hide in combat", "Fade out while fighting")
-        qswitch(s, "hideOutOfCombat", "Hide out of combat", "Fade out while not fighting")
+        qswitch(s, "hideOutOfCombat", "Hide out of combat", "Show final XP, fade out; hover near to reveal")
         qfade(s)
         qswitch(s, "hideBlizzXp", "Hide default XP and rep bars", "Use only the island for XP and reputation")
         qswitch(s, "move", "Move mode", "Drag the island anywhere on screen")
