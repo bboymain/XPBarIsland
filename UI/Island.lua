@@ -687,7 +687,8 @@ function island:LayoutStreakTag()
     end
     local actual = labelWidth + (hintWidth > 0 and hintWidth + 12 or 0)
     tag.textGroup:SetWidth(math.max(1, actual))
-    tag.textGroup:SetScale(math.min(1, allowed / math.max(1, actual)))
+    tag._fitScale = math.min(1, allowed / math.max(1, actual))
+    tag.textGroup:SetScale(tag._fitScale)
 end
 
 local function updateStreakRules(tag, col, frac)
@@ -714,11 +715,12 @@ function island:OnStreakKill()
     local tag = self.streakTag
     if self._streakPop then ns.KillTween(self._streakPop) end
     local amp = 1 + 0.4 * strengthScale()
-    tag.content:SetScale(amp)
+    -- Only the glyphs pop; scaling the full line would overlap adjacent slots.
+    tag.textGroup:SetScale((tag._fitScale or 1) * amp)
     self._streakPop = ns.Tween({
         dur = 0.5, from = amp, to = 1.0, ease = ns.cubicBezier(0.34, 1.8, 0.5, 1),
-        set = function(v) tag.content:SetScale(v) end,
-        done = function() tag.content:SetScale(1); self._streakPop = nil end,
+        set = function(v) tag.textGroup:SetScale((tag._fitScale or 1) * v) end,
+        done = function() tag.textGroup:SetScale(tag._fitScale or 1); self._streakPop = nil end,
     })
 end
 
