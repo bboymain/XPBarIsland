@@ -11,31 +11,34 @@ local islandFrame = ns.island.frame
 -- Anchoring both edges keeps the line exactly as wide as the island, including
 -- while the island is resized, moved or scaled.
 local line = CreateFrame("Frame", nil, UIParent)
-line:SetPoint("TOPLEFT", islandFrame, "BOTTOMLEFT", 0, -8)
-line:SetPoint("TOPRIGHT", islandFrame, "BOTTOMRIGHT", 0, -8)
-line:SetHeight(24)
 line:SetFrameStrata("MEDIUM")
 line:SetFrameLevel((islandFrame:GetFrameLevel() or 0) + 8)
 if line.SetMouseClickEnabled then line:SetMouseClickEnabled(false) end
 if line.SetMouseMotionEnabled then line:SetMouseMotionEnabled(false) end
 line:EnableMouse(false)
-line:Hide()
+ns.island:RegisterUnderLine("stats", line, 30)
 
-local textGroup = CreateFrame("Frame", nil, line)
+-- Only the decoration moves 6px on entrance. The 30px stack slot remains
+-- fixed, so its animation never pushes another announcement into this line.
+local visual = CreateFrame("Frame", nil, line)
+visual:SetPoint("TOPLEFT", line, "TOPLEFT", 0, 0)
+visual:SetPoint("BOTTOMRIGHT", line, "BOTTOMRIGHT", 0, 0)
+
+local textGroup = CreateFrame("Frame", nil, visual)
 textGroup:SetSize(1, 24)
 textGroup:SetPoint("CENTER", line, "CENTER", 0, 0)
 
-local leftRule = line:CreateTexture(nil, "ARTWORK")
+local leftRule = visual:CreateTexture(nil, "ARTWORK")
 leftRule:SetTexture(ns.Media.white)
 leftRule:SetHeight(1)
-leftRule:SetPoint("LEFT", line, "LEFT", 0, 0)
+leftRule:SetPoint("LEFT", visual, "LEFT", 0, 0)
 leftRule:SetPoint("RIGHT", textGroup, "LEFT", -16, 0)
 
-local rightRule = line:CreateTexture(nil, "ARTWORK")
+local rightRule = visual:CreateTexture(nil, "ARTWORK")
 rightRule:SetTexture(ns.Media.white)
 rightRule:SetHeight(1)
 rightRule:SetPoint("LEFT", textGroup, "RIGHT", 16, 0)
-rightRule:SetPoint("RIGHT", line, "RIGHT", 0, 0)
+rightRule:SetPoint("RIGHT", visual, "RIGHT", 0, 0)
 
 local LABEL_COLOR = ns.HexA("#B8B0A0")
 local STAT_GAP = 26
@@ -121,11 +124,11 @@ local function drawEntries(entries)
     fitText()
 end
 
--- The parent is outside the island; only the line's anchors must be animated.
+-- Slide the art inside its reserved stack slot; never move the slot itself.
 local function position(y)
-    line:ClearAllPoints()
-    line:SetPoint("TOPLEFT", islandFrame, "BOTTOMLEFT", 0, y)
-    line:SetPoint("TOPRIGHT", islandFrame, "BOTTOMRIGHT", 0, y)
+    visual:ClearAllPoints()
+    visual:SetPoint("TOPLEFT", line, "TOPLEFT", 0, y)
+    visual:SetPoint("BOTTOMRIGHT", line, "BOTTOMRIGHT", 0, y)
 end
 
 local delayTimer, holdTimer, tween
@@ -133,9 +136,9 @@ local function stop()
     if delayTimer then ns.CancelTimer(delayTimer); delayTimer = nil end
     if holdTimer then ns.CancelTimer(holdTimer); holdTimer = nil end
     if tween then ns.KillTween(tween); tween = nil end
-    line:Hide()
+    ns.island:SetUnderLineVisible("stats", false)
     line:SetAlpha(1)
-    position(-8)
+    position(0)
 end
 
 local function enabled()
@@ -146,31 +149,37 @@ end
 local function present(entries)
     stop()
     if not enabled() or #entries == 0 then return end
+    -- Reserve the first slot as the Supernova begins. Other visible lines have
+    -- 0.4s to spring downward before the stats start fading into view.
+    line:SetAlpha(0)
+    ns.island:SetUnderLineVisible("stats", true)
 
     -- Supernova begins in the same PLAYER_LEVEL_UP event; the stat line enters
     -- 0.4s later, holds for 2.7s after its entrance and fades out in 0.5s.
     delayTimer = ns.After(0.4, function()
         delayTimer = nil
         if not enabled() or not islandFrame:IsShown()
-            or (islandFrame:GetAlpha() or 1) < 0.1 then return end
+            or (islandFrame:GetAlpha() or 1) < 0.1 then
+            stop()
+            return
+        end
 
         drawEntries(entries)
         line:SetAlpha(0)
-        position(-2)
-        line:Show()
+        position(6)
         local animate = ns.db.animations ~= "Off"
         if animate then
             tween = ns.Tween({
                 dur = 0.4, from = 0, to = 1, ease = ns.easeOutCubic,
                 set = function(v, p)
                     line:SetAlpha(v)
-                    position(-2 - 6 * p)
+                    position(6 - 6 * p)
                 end,
-                done = function() tween = nil; line:SetAlpha(1); position(-8) end,
+                done = function() tween = nil; line:SetAlpha(1); position(0) end,
             })
         else
             line:SetAlpha(1)
-            position(-8)
+            position(0)
         end
 
         holdTimer = ns.After(3.1, function()
@@ -181,7 +190,7 @@ local function present(entries)
                 dur = 0.5, from = line:GetAlpha() or 1, to = 0,
                 ease = ns.easeOutCubic,
                 set = function(v) line:SetAlpha(v) end,
-                done = function() tween = nil; line:Hide() end,
+                done = function() tween = nil; ns.island:SetUnderLineVisible("stats", false) end,
             })
         end)
     end)
