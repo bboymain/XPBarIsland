@@ -2,6 +2,13 @@
 
 Every update to XPBar Island, in plain (and slightly caffeinated) English.
 
+## 1.0.11: The "Now You See XP" Update
+
+* **One last look:** The XP bar hangs out for a beat after combat, then takes a smooth 1.5-second bow. No more missing that last mob's XP!
+* **Smooth entrance:** The bar fades in when combat starts instead of popping into view.
+* **Cursor summon:** Hover over or near its hiding spot to bring it back. Move away and it fades away again.
+* Huge thanks to **@andygoyap** for the great ideas! 🙌
+
 ## 1.0.10: The "Smooth Operator" Update
 
 Thanks to **@gridrek** for the three fixes in this release.

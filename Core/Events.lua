@@ -87,12 +87,12 @@ function ns.RefreshUI() end -- replaced in Boot.lua
 ns.inCombat = false
 ns.On("PLAYER_REGEN_DISABLED", function()
     ns.inCombat = true
-    if ns.db and ns.island and ns.island.UpdateFade then ns.island:UpdateFade() end
+    if ns.db and ns.island and ns.island.OnCombatChanged then ns.island:OnCombatChanged() end
     ns.MarkDirty()
 end)
 ns.On("PLAYER_REGEN_ENABLED", function()
     ns.inCombat = false
-    if ns.db and ns.island and ns.island.UpdateFade then ns.island:UpdateFade() end
+    if ns.db and ns.island and ns.island.OnCombatChanged then ns.island:OnCombatChanged() end
     ns.MarkDirty()
 end)
 
