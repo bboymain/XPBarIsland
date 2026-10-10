@@ -1,75 +1,25 @@
+
 name: Publish XPBar Island to CurseForge
 
 on:
   push:
     tags:
       - 'v*'
-    branches:
-      - main
-    paths:
-      - '.github/workflows/publish-curseforge.yml'
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Existing version tag to publish'
-        required: true
-        type: string
 
 permissions:
   contents: write
-  actions: write
 
 jobs:
-  bootstrap-v1-0-13:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    name: Validate and tag v1.0.13
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out latest addon
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Validate Lua and v1.0.13 contents
-        run: |
-          set -euo pipefail
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq lua5.1
-          find Core Data Locale Settings UI -name '*.lua' -print0 | xargs -0 -n 1 luac5.1 -p
-          grep -q '^## Version: 1.0.13$' XPBarIsland.toc
-          grep -q '^## 1.0.13:' CHANGELOG.md
-          grep -q 'function ns.TestLevelUpSummary()' UI/LevelUpSummary.lua
-          grep -q 'ns.TestLevelUpSummary()' Core/Slash.lua
-          grep -q 'UNDER_ORDER = { "stats", "streak", "tier" }' UI/Island.lua
-          grep -q 'RegisterUnderLine("tier"' UI/Streak.lua
-          echo 'Lua syntax, release version, and preview/stack wiring OK.'
-      - name: Tag v1.0.13 and request publisher
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          TAG="v1.0.13"
-          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
-            echo "Tag ${TAG} already exists; not overwriting."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "${TAG}" -m "XPBar Island 1.0.13 — No Boxes, Just Bonuses"
-          git push origin "refs/tags/${TAG}"
-          gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/workflows/publish-curseforge.yml/dispatches" \
-            -f ref=main -F "inputs[tag]=${TAG}"
-
   publish:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
     name: Package and publish WoW addon
     runs-on: ubuntu-latest
     steps:
-      - name: Check out tagged addon release
+      - name: Check out the tagged addon release
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event.inputs.tag || github.ref }}
-      - name: Prepare clean addon package
+
+      - name: Prepare a clean addon package
         run: |
           cat > .pkgmeta <<'PKGMETA'
           package-as: XPBarIsland
@@ -85,6 +35,7 @@ jobs:
             - .opencode
             - XPBar Fix Kit
           PKGMETA
+
       - name: Upload tagged release to CurseForge
         uses: BigWigsMods/packager@v2
         with:
