@@ -4,8 +4,8 @@ local ADDON, ns = ...
 -- Level-up summary: a small card under the island listing what the new level
 -- brought - health, mana and attribute gains, the talent point and any spells
 -- waiting at the trainer.  Created once and reused; fades out on its own.
--- Every stat is read with a guarded fallback so a missing API only drops a
--- row, never the whole card.
+-- Every stat is read with a guarded fallback so a missing API - or a value the
+-- client keeps secret - only drops a row, never the whole card.
 -- ---------------------------------------------------------------------------
 local islandFrame = ns.island.frame
 
@@ -134,20 +134,44 @@ end
 -- ---- snapshot / gain reading ----------------------------------------------
 local STAT_NAMES = { "Strength", "Agility", "Stamina", "Intellect", "Spirit" }
 
+-- Modern (12.0+) clients hand back "secret" values for combat data, and any
+-- arithmetic or comparison on them raises a Lua error.  A secret is treated
+-- exactly like a missing API here: the value is dropped and the row it feeds
+-- is skipped, never the whole card.
+local function plainNumber(v)
+    if type(v) ~= "number" then return nil end
+    local isSecret = _G.issecretvalue
+    if isSecret and isSecret(v) then return nil end
+    return v
+end
+
 local function readStats()
     local t = { stats = {} }
-    t.health = UnitHealthMax("player") or 0
-    t.mana = (UnitPowerMax and UnitPowerMax("player", 0)) or 0
+    t.health = plainNumber(UnitHealthMax("player"))
+    t.mana = plainNumber(UnitPowerMax and UnitPowerMax("player", 0))
     for i = 1, 5 do
-        t.stats[i] = (UnitStat and UnitStat("player", i)) or 0
+        t.stats[i] = plainNumber(UnitStat and UnitStat("player", i))
     end
     return t
 end
 
 local baseline
 
+-- Store a snapshot as the new baseline.  A value the client will not reveal
+-- keeps its last known number, so the next readable level-up diffs against the
+-- last level we could actually read instead of going quiet for the session.
+local function updateBaseline(cur)
+    local snap = { stats = {} }
+    snap.health = cur.health or (baseline and baseline.health)
+    snap.mana = cur.mana or (baseline and baseline.mana)
+    for i = 1, 5 do
+        snap.stats[i] = cur.stats[i] or (baseline and baseline.stats[i])
+    end
+    baseline = snap
+end
+
 local function captureBaseline()
-    baseline = readStats()
+    updateBaseline(readStats())
 end
 
 local function buildEntries(level, cur, prev)
@@ -160,12 +184,16 @@ local function buildEntries(level, cur, prev)
             }
         end
     end
-    addGain("Health", cur.health, cur.health - prev.health)
-    if cur.mana > 0 and prev.mana > 0 then
+    local function delta(a, b)
+        if a and b then return a - b end
+        return nil
+    end
+    addGain("Health", cur.health, delta(cur.health, prev.health))
+    if cur.mana and prev.mana and cur.mana > 0 and prev.mana > 0 then
         addGain("Mana", cur.mana, cur.mana - prev.mana)
     end
     for i = 1, 5 do
-        addGain(STAT_NAMES[i], cur.stats[i], cur.stats[i] - prev.stats[i])
+        addGain(STAT_NAMES[i], cur.stats[i], delta(cur.stats[i], prev.stats[i]))
     end
 
     if level >= 10 then
@@ -189,7 +217,7 @@ local function onLevelUp(level)
 
     local cur = readStats()
     local prev = baseline
-    baseline = cur
+    updateBaseline(cur)
     if ns.db.levelUpSummary == false then return end
     if not prev then return end
     if not islandFrame:IsShown() then return end
