@@ -290,6 +290,7 @@ end
 -- Command-only preview: demonstrate the floating line without modifying
 -- character levels, health, mana, attributes, or the live gain baseline.
 function ns.TestLevelUpSummary()
+    if not enabled() or not islandFrame:IsShown() then return false end
     local now = readStats()
     local prev = { health = now.health or 1200, mana = now.mana, stats = {} }
     local demo = { health = prev.health + 35, stats = {} }
@@ -301,6 +302,7 @@ function ns.TestLevelUpSummary()
     prev.stats[3] = prev.stats[3] or 100
     demo.stats[3] = prev.stats[3] + 3
     present(buildEntries(demo, prev))
+    return true
 end
 
 ns.On("PLAYER_LEVEL_UP", onLevelUp)
