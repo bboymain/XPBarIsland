@@ -63,6 +63,9 @@ function ns.StreakAnnounce(tier, n, newBest)
     if hideTimer and ns.CancelTimer then ns.CancelTimer(hideTimer) end
     hideTimer = nil
 
+    -- Reserve the streak's slot first when both announcements fire on the
+    -- same kill; the tier banner then starts in its correct third-slot place.
+    if ns.island.UpdateStreak then ns.island:UpdateStreak() end
     ns.island:SetUnderLineVisible("tier", true)
     local animate = ns.db and ns.db.animations ~= "Off" and ns.Tween and ns.easeOutBack
     if not animate then
