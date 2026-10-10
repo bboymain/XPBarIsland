@@ -1,143 +1,205 @@
 local ADDON, ns = ...
 
 -- ---------------------------------------------------------------------------
--- Level-up summary: a small card under the island listing what the new level
--- brought - health, mana and attribute gains, the talent point and any spells
--- waiting at the trainer.  Created once and reused; fades out on its own.
--- Every stat is read with a guarded fallback so a missing API - or a value the
--- client keeps secret - only drops a row, never the whole card.
+-- Level-up gains: a single, borderless text line under the island.
+-- Health, Mana and the strongest gained base attribute are drawn from the
+-- same guarded snapshots used by the former level-up summary card.
 -- ---------------------------------------------------------------------------
 local islandFrame = ns.island.frame
 
-local card = CreateFrame("Frame", nil, UIParent)
-card:SetSize(280, 120)
-card:SetFrameStrata("MEDIUM")
-if card.SetMouseClickEnabled then card:SetMouseClickEnabled(false) end
-if card.SetMouseMotionEnabled then card:SetMouseMotionEnabled(false) end
-if card.EnableMouse then card:EnableMouse(false) end
-card:SetPoint("TOP", islandFrame, "BOTTOM", 0, -10)
-card:Hide()
+-- UIParent prevents the island's clipped children from cutting off the line.
+-- Anchoring both edges keeps the line exactly as wide as the island, including
+-- while the island is resized, moved or scaled.
+local line = CreateFrame("Frame", nil, UIParent)
+line:SetPoint("TOPLEFT", islandFrame, "BOTTOMLEFT", 0, -8)
+line:SetPoint("TOPRIGHT", islandFrame, "BOTTOMRIGHT", 0, -8)
+line:SetHeight(24)
+line:SetFrameStrata("MEDIUM")
+line:SetFrameLevel((islandFrame:GetFrameLevel() or 0) + 8)
+if line.SetMouseClickEnabled then line:SetMouseClickEnabled(false) end
+if line.SetMouseMotionEnabled then line:SetMouseMotionEnabled(false) end
+line:EnableMouse(false)
+line:Hide()
 
-card.bg = card:CreateTexture(nil, "BACKGROUND", nil, 0)
-card.bg:SetAllPoints(card)
-card.border = {}
-for i = 1, 4 do
-    local t = card:CreateTexture(nil, "BORDER", nil, 1)
-    t:SetTexture(ns.Media.white)
-    card.border[i] = t
-end
-local function layoutBorder()
-    local b = card.border
-    b[1]:ClearAllPoints(); b[1]:SetPoint("TOPLEFT", card, "TOPLEFT", 0, 0); b[1]:SetPoint("TOPRIGHT", card, "TOPRIGHT", 0, 0); b[1]:SetHeight(2)
-    b[2]:ClearAllPoints(); b[2]:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 0, 0); b[2]:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", 0, 0); b[2]:SetHeight(2)
-    b[3]:ClearAllPoints(); b[3]:SetPoint("TOPLEFT", card, "TOPLEFT", 0, 0); b[3]:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 0, 0); b[3]:SetWidth(2)
-    b[4]:ClearAllPoints(); b[4]:SetPoint("TOPRIGHT", card, "TOPRIGHT", 0, 0); b[4]:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", 0, 0); b[4]:SetWidth(2)
-end
-layoutBorder()
+local textGroup = CreateFrame("Frame", nil, line)
+textGroup:SetSize(1, 24)
+textGroup:SetPoint("CENTER", line, "CENTER", 0, 0)
 
-card.title = card:CreateFontString(nil, "OVERLAY")
-ns.StyleText(card.title, 15, "extrabold")
-card.title:SetPoint("TOP", card, "TOP", 0, -7)
+local leftRule = line:CreateTexture(nil, "ARTWORK")
+leftRule:SetTexture(ns.Media.white)
+leftRule:SetHeight(1)
+leftRule:SetPoint("LEFT", line, "LEFT", 0, 0)
+leftRule:SetPoint("RIGHT", textGroup, "LEFT", -16, 0)
 
-local rows = {}
-local function getRow(i)
-    local r = rows[i]
-    if not r then
-        r = {}
-        r.label = card:CreateFontString(nil, "OVERLAY")
-        ns.StyleText(r.label, 12, "medium")
-        r.label:SetJustifyH("LEFT")
-        r.value = card:CreateFontString(nil, "OVERLAY")
-        ns.StyleText(r.value, 12, "bold")
-        r.value:SetJustifyH("RIGHT")
-        rows[i] = r
+local rightRule = line:CreateTexture(nil, "ARTWORK")
+rightRule:SetTexture(ns.Media.white)
+rightRule:SetHeight(1)
+rightRule:SetPoint("LEFT", textGroup, "RIGHT", 16, 0)
+rightRule:SetPoint("RIGHT", line, "RIGHT", 0, 0)
+
+local LABEL_COLOR = ns.HexA("#B8B0A0")
+local STAT_GAP = 26
+local PART_GAP = 7
+local MIN_RULE = 12
+local parts = {}
+local shownEntries
+
+local function getPart(index)
+    if parts[index] then return parts[index] end
+    local part = {}
+    for _, spec in ipairs({
+        { key = "label", weight = "medium" },
+        { key = "total", weight = "bold" },
+        { key = "gain", weight = "bold" },
+    }) do
+        local fs = textGroup:CreateFontString(nil, "OVERLAY")
+        fs:SetJustifyH("LEFT")
+        if fs.SetWordWrap then fs:SetWordWrap(false) end
+        part[spec.key] = fs
     end
-    return r
+    parts[index] = part
+    return part
 end
 
-local function applyTheme()
+local function styleFont(fs, weight)
+    ns.StyleText(fs, 16, weight)
+    -- StyleText deliberately removes the outline used nowhere else in the UI.
+    -- Add it locally so the floating line remains legible on world backgrounds.
+    local font, size = fs:GetFont()
+    if not (font and size and pcall(fs.SetFont, fs, font, size, "OUTLINE")) then
+        fs:SetShadowColor(0, 0, 0, 1)
+        fs:SetShadowOffset(1, -1)
+    end
+end
+
+local function fitText()
+    local maxWidth = math.max(1, (line:GetWidth() or islandFrame:GetWidth() or 460) - 2 * (16 + MIN_RULE))
+    local natural = textGroup:GetWidth() or 1
+    textGroup:SetScale(math.min(1, maxWidth / math.max(1, natural)))
+end
+
+local function drawEntries(entries)
+    shownEntries = entries
     local th = ns.Theme()
-    local gold = ns.HexA(th and th.gold or "#FFD100")
-    ns.Paint(card.bg, 0.051, 0.043, 0.031, 0.92)
-    for i = 1, 4 do ns.Paint(card.border[i], gold[1], gold[2], gold[3], 1) end
-    card.title:SetTextColor(gold[1], gold[2], gold[3], 1)
-    return gold
-end
+    local ring = ns.HexA(th.ring)
+    local gold = ns.HexA(th.gold) -- includes the optional custom text accent
+    ns.Gradient(leftRule, { ring[1], ring[2], ring[3], 0 },
+        { ring[1], ring[2], ring[3], 1 }, true)
+    ns.Gradient(rightRule, { ring[1], ring[2], ring[3], 1 },
+        { ring[1], ring[2], ring[3], 0 }, true)
 
-local tween, hideTimer
-local HOLD = 9
-
-local function stop()
-    if tween then ns.KillTween(tween); tween = nil end
-    if hideTimer then ns.CancelTimer(hideTimer); hideTimer = nil end
-end
-
-local function fill(level, entries)
-    local gold = applyTheme()
-    card.title:SetText("Level " .. level .. "!")
-    local y = -30
-    for i = 1, #entries do
-        local e = entries[i]
-        local r = getRow(i)
-        r.label:ClearAllPoints()
-        r.label:SetPoint("TOPLEFT", card, "TOPLEFT", 12, y)
-        r.label:SetText(e.label)
-        if e.special then
-            r.label:SetTextColor(gold[1], gold[2], gold[3], 1)
-            r.value:SetText("")
-        else
-            r.label:SetTextColor(0.93, 0.90, 0.85, 1)
-            r.value:ClearAllPoints()
-            r.value:SetPoint("TOPRIGHT", card, "TOPRIGHT", -12, y)
-            r.value:SetText(e.value)
-            r.value:SetTextColor(1, 1, 1, 1)
+    local x = 0
+    for i, entry in ipairs(entries) do
+        if i > 1 then x = x + STAT_GAP end
+        local part = getPart(i)
+        local specs = {
+            { fs = part.label, value = entry.label, weight = "medium", color = LABEL_COLOR },
+            { fs = part.total, value = entry.total, weight = "bold", color = { 1, 1, 1 } },
+            { fs = part.gain, value = entry.gain, weight = "bold", color = gold },
+        }
+        for j, spec in ipairs(specs) do
+            if j > 1 then x = x + PART_GAP end
+            local fs = spec.fs
+            styleFont(fs, spec.weight)
+            fs:SetText(spec.value)
+            fs:SetTextColor(spec.color[1], spec.color[2], spec.color[3], 1)
+            fs:SetWidth(1000) -- measure the entire string without wrapping
+            local width = math.ceil(fs:GetStringWidth() or 0) + 2
+            fs:SetWidth(width)
+            fs:ClearAllPoints()
+            fs:SetPoint("LEFT", textGroup, "LEFT", x, 0)
+            fs:Show()
+            x = x + width
         end
-        r.label:Show()
-        r.value:Show()
-        y = y - 17
     end
-    for i = #entries + 1, #rows do
-        rows[i].label:Hide()
-        rows[i].value:Hide()
+    for i = #entries + 1, #parts do
+        parts[i].label:Hide()
+        parts[i].total:Hide()
+        parts[i].gain:Hide()
     end
-    card:SetHeight(34 + #entries * 17 + 8)
-    layoutBorder()
+    textGroup:SetWidth(math.max(1, x))
+    fitText()
 end
 
-local function present(level, entries)
+-- The parent is outside the island; only the line's anchors must be animated.
+local function position(y)
+    line:ClearAllPoints()
+    line:SetPoint("TOPLEFT", islandFrame, "BOTTOMLEFT", 0, y)
+    line:SetPoint("TOPRIGHT", islandFrame, "BOTTOMRIGHT", 0, y)
+end
+
+local delayTimer, holdTimer, tween
+local function stop()
+    if delayTimer then ns.CancelTimer(delayTimer); delayTimer = nil end
+    if holdTimer then ns.CancelTimer(holdTimer); holdTimer = nil end
+    if tween then ns.KillTween(tween); tween = nil end
+    line:Hide()
+    line:SetAlpha(1)
+    position(-8)
+end
+
+local function enabled()
+    return ns.db and ns.db.enabled and ns.db.levelUpFx ~= false
+        and ns.db.levelUpSummary ~= false
+end
+
+local function present(entries)
     stop()
-    fill(level, entries)
-    card:Show()
-    local animate = ns.db and ns.db.animations ~= "Off"
-    if not animate then
-        card:SetAlpha(1)
-    else
-        card:SetAlpha(0)
-        tween = ns.Tween({
-            dur = 0.3, from = 0, to = 1, ease = ns.easeOutCubic,
-            set = function(v) card:SetAlpha(v) end,
-            done = function() tween = nil end,
-        })
-    end
-    hideTimer = ns.After(HOLD + 0.3, function()
-        hideTimer = nil
-        if not animate then card:Hide(); return end
-        if tween then ns.KillTween(tween) end
-        tween = ns.Tween({
-            dur = 0.4, from = card:GetAlpha() or 1, to = 0, ease = ns.easeOutCubic,
-            set = function(v) card:SetAlpha(v) end,
-            done = function() tween = nil; card:Hide() end,
-        })
+    if not enabled() or #entries == 0 then return end
+
+    -- Supernova begins in the same PLAYER_LEVEL_UP event; the stat line enters
+    -- 0.4s later, holds for 2.7s after its entrance and fades out in 0.5s.
+    delayTimer = ns.After(0.4, function()
+        delayTimer = nil
+        if not enabled() or not islandFrame:IsShown()
+            or (islandFrame:GetAlpha() or 1) < 0.1 then return end
+
+        drawEntries(entries)
+        line:SetAlpha(0)
+        position(-2)
+        line:Show()
+        local animate = ns.db.animations ~= "Off"
+        if animate then
+            tween = ns.Tween({
+                dur = 0.4, from = 0, to = 1, ease = ns.easeOutCubic,
+                set = function(v, p)
+                    line:SetAlpha(v)
+                    position(-2 - 6 * p)
+                end,
+                done = function() tween = nil; line:SetAlpha(1); position(-8) end,
+            })
+        else
+            line:SetAlpha(1)
+            position(-8)
+        end
+
+        holdTimer = ns.After(3.1, function()
+            holdTimer = nil
+            if not animate then stop(); return end
+            if tween then ns.KillTween(tween); tween = nil end
+            tween = ns.Tween({
+                dur = 0.5, from = line:GetAlpha() or 1, to = 0,
+                ease = ns.easeOutCubic,
+                set = function(v) line:SetAlpha(v) end,
+                done = function() tween = nil; line:Hide() end,
+            })
+        end)
     end)
 end
 
--- ---- snapshot / gain reading ----------------------------------------------
+line:SetScript("OnSizeChanged", function() fitText() end)
+ns.OnUpdateLayout(function()
+    if not enabled() then
+        stop()
+    elseif shownEntries and line:IsShown() then
+        -- Follow live theme, font and custom-accent changes during the effect.
+        drawEntries(shownEntries)
+    end
+end)
+
+-- ---- snapshot / gain reading (same APIs and secret-value guards) ----------
 local STAT_NAMES = { "Strength", "Agility", "Stamina", "Intellect", "Spirit" }
 
--- Modern (12.0+) clients hand back "secret" values for combat data, and any
--- arithmetic or comparison on them raises a Lua error.  A secret is treated
--- exactly like a missing API here: the value is dropped and the row it feeds
--- is skipped, never the whole card.
 local function plainNumber(v)
     if type(v) ~= "number" then return nil end
     local isSecret = _G.issecretvalue
@@ -156,10 +218,6 @@ local function readStats()
 end
 
 local baseline
-
--- Store a snapshot as the new baseline.  A value the client will not reveal
--- keeps its last known number, so the next readable level-up diffs against the
--- last level we could actually read instead of going quiet for the session.
 local function updateBaseline(cur)
     local snap = { stats = {} }
     snap.health = cur.health or (baseline and baseline.health)
@@ -174,13 +232,14 @@ local function captureBaseline()
     updateBaseline(readStats())
 end
 
-local function buildEntries(level, cur, prev)
+local function buildEntries(cur, prev)
     local entries = {}
     local function addGain(label, value, gain)
-        if gain and gain > 0 then
+        if value and gain and gain > 0 then
             entries[#entries + 1] = {
                 label = label,
-                value = ns.Comma(value) .. "  |cff7BE8C3+" .. ns.Comma(gain) .. "|r",
+                total = ns.Comma(value),
+                gain = "+" .. ns.Comma(gain),
             }
         end
     end
@@ -188,45 +247,37 @@ local function buildEntries(level, cur, prev)
         if a and b then return a - b end
         return nil
     end
+
     addGain("Health", cur.health, delta(cur.health, prev.health))
     if cur.mana and prev.mana and cur.mana > 0 and prev.mana > 0 then
         addGain("Mana", cur.mana, cur.mana - prev.mana)
     end
-    for i = 1, 5 do
-        addGain(STAT_NAMES[i], cur.stats[i], delta(cur.stats[i], prev.stats[i]))
-    end
 
-    if level >= 10 then
-        entries[#entries + 1] = { label = "1 Talent Point is now available", special = true }
-    end
-    if ns.SpellsForLevel then
-        local n = #ns.SpellsForLevel(level)
-        if n > 0 then
-            entries[#entries + 1] = {
-                label = n .. (n == 1 and " new spell" or " new spells") .. " - visit your trainer",
-                special = true,
-            }
+    -- All five base attributes are still sampled. Pick the largest positive
+    -- attribute increase as the optional third stat so the line stays compact.
+    local bestStat, bestGain
+    for i = 1, 5 do
+        local gain = delta(cur.stats[i], prev.stats[i])
+        if gain and gain > 0 and (not bestGain or gain > bestGain) then
+            bestStat, bestGain = i, gain
         end
     end
+    if bestStat then addGain(STAT_NAMES[bestStat], cur.stats[bestStat], bestGain) end
     return entries
 end
 
-local function onLevelUp(level)
+local function onLevelUp()
     if not (ns.db and ns.db.enabled) then return end
-    if type(level) ~= "number" then level = UnitLevel("player") or 0 end
-
     local cur = readStats()
     local prev = baseline
     updateBaseline(cur)
-    if ns.db.levelUpSummary == false then return end
-    if not prev then return end
+    if not enabled() or not prev then return end
     if not islandFrame:IsShown() then return end
     if (islandFrame:GetAlpha() or 1) < 0.1 then return end
 
-    local entries = buildEntries(level, cur, prev)
-    if #entries > 0 then present(level, entries) end
+    present(buildEntries(cur, prev))
 end
 
-ns.On("PLAYER_LEVEL_UP", function(_, level) onLevelUp(level) end)
+ns.On("PLAYER_LEVEL_UP", onLevelUp)
 ns.On("PLAYER_ENTERING_WORLD", captureBaseline)
 ns.On("PLAYER_LOGIN", captureBaseline)
