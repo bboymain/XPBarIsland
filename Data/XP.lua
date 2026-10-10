@@ -3,6 +3,10 @@ local ADDON, ns = ...
 -- ---------------------------------------------------------------------------
 -- Experience + session tracking.
 -- ---------------------------------------------------------------------------
+-- Kills to level averages this many recent kills, so one lower- or
+-- higher-level mob doesn't swing the estimate.
+local KILL_WINDOW = 10
+
 local session = {
     start = GetTime(),
     gain = 0,              -- xp gained this session
@@ -10,7 +14,7 @@ local session = {
     lastMax = nil,
     lastLevel = nil,
     levelStart = GetTime(),
-    killXP = nil,
+    kills = {},            -- base XP (rested bonus removed) of recent kills at this level
     killName = nil,
     samples = {},          -- { {t=cumXP, v=...}, ... }  (last 13)
     playedTotal = nil,
@@ -131,7 +135,7 @@ end
 function session:Reset()
     self.start = GetTime()
     self.gain = 0
-    self.killXP = nil
+    self.kills = {}
     self.killName = nil
     self.samples = {}
     self.lastSample = 0
@@ -156,6 +160,8 @@ function session:Save()
         gain = self.gain or 0,
         elapsed = self:Elapsed(),
         lastSeen = self.lastSeen,
+        kills = self.kills,
+        killLevel = UnitLevel("player"),
     }
 end
 
@@ -167,6 +173,14 @@ function session:Restore()
     if elapsed < 0 then elapsed = 0 end
     self.start = GetTime() - elapsed
     self.lastSeen = tonumber(s.lastSeen)
+    -- recent kills only still describe the mobs if the level hasn't changed
+    self.kills = {}
+    if type(s.kills) == "table" and s.killLevel == UnitLevel("player") then
+        for i = 1, #s.kills do
+            local v = tonumber(s.kills[i])
+            if v and v > 0 then self.kills[#self.kills + 1] = v end
+        end
+    end
     if ns.island then
         ns.island._seenGain = self.gain
         if self.lastSeen then
@@ -201,6 +215,21 @@ function session:Rate()
     return self.gain / (e / 3600)
 end
 
+function session:AddKill(base)
+    local k = self.kills
+    k[#k + 1] = base
+    while #k > KILL_WINDOW do table.remove(k, 1) end
+end
+
+-- Average base XP per kill over the recent window, or nil before any kill.
+function session:KillXP()
+    local k = self.kills
+    if #k == 0 then return nil end
+    local sum = 0
+    for i = 1, #k do sum = sum + k[i] end
+    return sum / #k
+end
+
 function session:AddSample(total)
     local now = GetTime()
     self.samples[#self.samples + 1] = { t = total }
@@ -224,19 +253,19 @@ local function toAmount(s)
     return s and tonumber((s:gsub("[^%d]", "")))
 end
 
--- { global string, capture index of the mob name, of the XP amount }.
--- Only messages that name a mob are kills: quest, exploration and other XP
--- comes through unnamed.
+-- { global string, capture index of the mob name, of the XP amount, of the
+-- rested bonus }.  Only messages that name a mob are kills: quest, exploration
+-- and other XP comes through unnamed.
 local KILL_FORMATS = {
     { "COMBATLOG_XPGAIN_FIRSTPERSON",         1, 2 },
     { "COMBATLOG_XPGAIN_FIRSTPERSON_FULL",    1, 2 },
     { "COMBATLOG_XPGAIN_FIRSTPERSON_GROUP",   1, 2 },
     { "COMBATLOG_XPGAIN_FIRSTPERSON_RAID",    1, 2 },
-    { "COMBATLOG_XPGAIN_EXHAUSTION1",         1, 2 },
-    { "COMBATLOG_XPGAIN_EXHAUSTION1_GROUP",   1, 2 },
-    { "COMBATLOG_XPGAIN_EXHAUSTION1_RAID",    1, 2 },
+    { "COMBATLOG_XPGAIN_EXHAUSTION1",         1, 2, 3 },
+    { "COMBATLOG_XPGAIN_EXHAUSTION1_GROUP",   1, 2, 3 },
+    { "COMBATLOG_XPGAIN_EXHAUSTION1_RAID",    1, 2, 3 },
     { "COMBATLOG_XPGAIN_FIRSTPERSON_UNNAMED", nil, 1 },
-    { "COMBATLOG_XPGAIN_EXHAUSTION1_UNNAMED", nil, 1 },
+    { "COMBATLOG_XPGAIN_EXHAUSTION1_UNNAMED", nil, 1, 2 },
 }
 
 local killPatterns = {}
@@ -244,20 +273,23 @@ local function initPatterns()
     for _, f in ipairs(KILL_FORMATS) do
         local p = buildPattern(_G[f[1]])
         if p then
-            killPatterns[#killPatterns + 1] = { p = p, name = f[2], amount = f[3] }
+            killPatterns[#killPatterns + 1] = { p = p, name = f[2], amount = f[3], bonus = f[4] }
         end
     end
 end
 initPatterns()
 
--- Returns the mob name (nil when the XP isn't from a kill) and the XP amount.
+-- Returns the mob name (nil when the XP isn't from a kill), the XP amount
+-- and the rested bonus included in that amount.
 local function parseKill(msg)
     for _, k in ipairs(killPatterns) do
         local caps = { msg:match(k.p) }
         if caps[1] then
             local name = k.name and caps[k.name]
             local amt = toAmount(caps[k.amount])
-            if amt and not (name and tonumber(name)) then return name, amt end
+            if amt and not (name and tonumber(name)) then
+                return name, amt, k.bonus and toAmount(caps[k.bonus]) or nil
+            end
         end
     end
     -- Last resort: any group of digits in an "XP gain" style message.
@@ -289,7 +321,7 @@ function ns.xp()
         elapsed = session:Elapsed(),
         rate = session:Rate(),
         gain = session.gain,
-        killXP = session.killXP,
+        killXP = session:KillXP(),
         killName = session.killName,
         samples = session.samples,
     }
@@ -329,7 +361,8 @@ ns.On("PLAYER_LEVEL_UP", function(_, newLevel)
     session.lastXP = 0
     session.lastMax = (ns.API.UnitXPMax and UnitXPMax("player")) or 1
     session.lastLevel = newLevel or UnitLevel("player")
-    session.killXP = nil
+    -- mobs are worth a different amount at the new level
+    session.kills = {}
     session.killName = nil
     session.levelStart = GetTime()
     -- the server's "this level" timer resets on level-up: clear the locally
@@ -345,10 +378,13 @@ end)
 
 ns.On("CHAT_MSG_COMBAT_XP_GAIN", function(_, msg)
     if not msg then return end
-    local name, amt = parseKill(msg)
-    -- only kills update the per-kill XP; a quest turn-in must not count as one
+    local name, amt, bonus = parseKill(msg)
     if name and amt then
-        session.killXP = amt
+        -- the amount includes the rested bonus; keep the base so the estimate
+        -- doesn't halve when rested runs out (Data.lua spends the pool)
+        local base = amt
+        if bonus and bonus > 0 and bonus < amt then base = amt - bonus end
+        session:AddKill(base)
         session.killName = name
     end
     -- gain text: prefer the parsed kill, fall back to plain XP
