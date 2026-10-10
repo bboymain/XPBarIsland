@@ -287,6 +287,22 @@ local function onLevelUp()
     present(buildEntries(cur, prev))
 end
 
+-- Command-only preview: demonstrate the floating line without modifying
+-- character levels, health, mana, attributes, or the live gain baseline.
+function ns.TestLevelUpSummary()
+    local now = readStats()
+    local prev = { health = now.health or 1200, mana = now.mana, stats = {} }
+    local demo = { health = prev.health + 35, stats = {} }
+    if prev.mana and prev.mana > 0 then demo.mana = prev.mana + 20 end
+    for i = 1, 5 do
+        prev.stats[i] = now.stats[i]
+        demo.stats[i] = now.stats[i]
+    end
+    prev.stats[3] = prev.stats[3] or 100
+    demo.stats[3] = prev.stats[3] + 3
+    present(buildEntries(demo, prev))
+end
+
 ns.On("PLAYER_LEVEL_UP", onLevelUp)
 ns.On("PLAYER_ENTERING_WORLD", captureBaseline)
 ns.On("PLAYER_LOGIN", captureBaseline)
