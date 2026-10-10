@@ -1481,13 +1481,41 @@ end
 -- Fade / combat / mode
 -- ---------------------------------------------------------------------------
 local COMBAT_FADE = 0.25
+local OOC_ENTER_FADE = 0.4
+local OOC_EXIT_FADE = 1.5
+local OOC_GAIN_HOLD = 0.75
+local OOC_HOVER_MARGIN = 24
+
+-- Let the XP gained from the last enemy finish animating before fading away.
+function island:CancelCombatHold()
+    if self._outCombatHoldTimer then
+        ns.CancelTimer(self._outCombatHoldTimer)
+        self._outCombatHoldTimer = nil
+    end
+    self._outCombatHold = false
+end
+
+function island:OnCombatChanged()
+    self:CancelCombatHold()
+    if not ns.inCombat and ns.db and ns.db.enabled
+        and ns.db.hideOutOfCombat and not ns.db.hideCombat
+        and ns.db.animations ~= "Off" then
+        self._outCombatHold = true
+        self._outCombatHoldTimer = ns.After(OOC_GAIN_HOLD, function()
+            self._outCombatHoldTimer = nil
+            self._outCombatHold = false
+            self:UpdateFade()
+        end)
+    end
+    self:UpdateFade()
+end
 
 function island:StopCombatFade()
     if self._combatFadeTween then ns.KillTween(self._combatFadeTween); self._combatFadeTween = nil end
     self._combatFadeTo = nil
 end
 
-function island:SetCombatFade(target)
+function island:SetCombatFade(target, duration)
     if self._combatFadeTween then
         if self._combatFadeTo == target then return end
         ns.KillTween(self._combatFadeTween)
@@ -1500,7 +1528,7 @@ function island:SetCombatFade(target)
         return
     end
     self._combatFadeTween = ns.Tween({
-        dur = COMBAT_FADE, from = from, to = target, ease = ns.easeOutCubic,
+        dur = duration or COMBAT_FADE, from = from, to = target, ease = ns.easeOutCubic,
         set = function(v) f:SetAlpha(v) end,
         done = function()
             f:SetAlpha(target)
@@ -1511,15 +1539,18 @@ end
 
 function island:UpdateFade()
     if not ns.db.enabled then
+        self:CancelCombatHold()
         self:StopCombatFade()
         f:SetAlpha(0)
         f:EnableMouse(false)
+        if self.hoverStrip then self.hoverStrip:Hide() end
         return
     end
     f:EnableMouse(true)
 
     -- while the settings panel is open the island stays visible and collapsed
     if self.previewOpen then
+        self:CancelCombatHold()
         self:StopCombatFade()
         f:SetAlpha(1)
         if self.hoverStrip then self.hoverStrip:Hide() end
@@ -1527,16 +1558,26 @@ function island:UpdateFade()
     end
 
     if ns.db.hideCombat and ns.inCombat then
+        self:CancelCombatHold()
+        if self.hoverStrip then self.hoverStrip:Hide() end
         self:SetCombatFade(0)
         return
     end
 
-    -- "Hide out of combat": fade away while relaxed, fade back in when fighting
+    -- Fade slowly after combat, but reveal the hidden island near its location.
     if ns.db.hideOutOfCombat then
-        f:EnableMouse(ns.inCombat)
-        self:SetCombatFade(ns.inCombat and 1 or 0)
+        if self.hiddenY ~= 0 then
+            self.hiddenY = 0
+            self:ApplyPosition()
+        end
+        if self.hoverStrip then self.hoverStrip:Hide() end
+        local near = self.mouseOver or self.cursorNear
+        local visible = ns.inCombat or near or self._outCombatHold
+        f:EnableMouse(ns.inCombat or near or false)
+        self:SetCombatFade(visible and 1 or 0, visible and OOC_ENTER_FADE or OOC_EXIT_FADE)
         return
     end
+    self:CancelCombatHold()
     self:StopCombatFade()
 
     -- Auto-hide: slide the island up off the top edge; a thin strip brings it back
@@ -1756,6 +1797,25 @@ end)
 
 f:SetScript("OnUpdate", function(_, elapsed)
     if not ns.db then return end
+
+    -- A hidden frame has no usable mouse enter event. Poll a 24px halo around
+    -- its actual bounds (including UI scale) so nearby cursors can reveal it.
+    local near = false
+    if ns.db.enabled and ns.db.hideOutOfCombat and not ns.inCombat
+        and not island.previewOpen and type(GetCursorPosition) == "function" then
+        local cx, cy = GetCursorPosition()
+        local scale = f:GetEffectiveScale() or 1
+        local left, right, top, bottom = f:GetLeft(), f:GetRight(), f:GetTop(), f:GetBottom()
+        if cx and cy and scale > 0 and left and right and top and bottom then
+            cx, cy = cx / scale, cy / scale
+            near = cx >= left - OOC_HOVER_MARGIN and cx <= right + OOC_HOVER_MARGIN
+                and cy >= bottom - OOC_HOVER_MARGIN and cy <= top + OOC_HOVER_MARGIN
+        end
+    end
+    if near ~= island.cursorNear then
+        island.cursorNear = near
+        island:UpdateFade()
+    end
     if canPoll then
         local over = f:IsMouseOver()
         if not over and ns.Tooltip and ns.Tooltip.shown and ns.Tooltip.frame then
