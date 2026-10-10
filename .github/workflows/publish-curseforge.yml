@@ -20,40 +20,40 @@ permissions:
   actions: write
 
 jobs:
-  bootstrap-v1-0-12:
+  bootstrap-v1-0-11:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    name: Validate and trigger v1.0.12 release
+    name: Validate and trigger v1.0.11 release
     runs-on: ubuntu-latest
     steps:
       - name: Check out the latest addon
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Check addon syntax and release files
+      - name: Check addon syntax and version
         run: |
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq lua5.1
           find Core Data Locale Settings UI -name '*.lua' -print0 | xargs -0 -n 1 luac5.1 -p
-          grep -q '^## Version: 1.0.12$' XPBarIsland.toc
-          grep -q '## 1.0.12:' CHANGELOG.md
-          grep -q 'Level-up gains: a single, borderless text line' UI/LevelUpSummary.lua
-          grep -q 'local ring = ns.HexA(th.ring)' UI/LevelUpSummary.lua
-          grep -q 'ns.db.levelUpFx ~= false' UI/LevelUpSummary.lua
+          grep -q '^## Version: 1.0.11$' XPBarIsland.toc
+          grep -q 'OOC_EXIT_FADE = 1.5' UI/Island.lua
+          grep -q 'OOC_ENTER_FADE = 0.4' UI/Island.lua
+          grep -q 'OOC_HOVER_MARGIN = 24' UI/Island.lua
+          grep -q '@andygoyap' CHANGELOG.md
           echo 'Lua syntax and release metadata validated.'
-      - name: Create v1.0.12 release tag and dispatch publishing
+      - name: Create release tag and dispatch publishing
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          TAG="v1.0.12"
+          TAG="v1.0.11"
           if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
             echo "Tag ${TAG} already exists. Will not overwrite or republish automatically."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "${TAG}" -m "XPBar Island 1.0.12 — Level Up, Lighten Up"
+          git tag -a "${TAG}" -m "XPBar Island 1.0.11 — Now You See XP"
           git push origin "refs/tags/${TAG}"
           gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/workflows/publish-curseforge.yml/dispatches" \
             -f ref=main -F "inputs[tag]=${TAG}"
