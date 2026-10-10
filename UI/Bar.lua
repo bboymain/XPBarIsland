@@ -31,11 +31,12 @@ local function strengthScale()
     return ((ns.db and ns.db.strength) or 100) / 100
 end
 
--- Comet pulse timing (20 updates per second via the shared driver)
+-- Comet pulse timing (stepped every frame via the shared driver, advanced by
+-- real elapsed time so it stays smooth at any frame rate)
 local COMET_LOOP = 2.0
 local COMET_TRAVEL = 1.4
 local COMET_ARRIVE = 0.5
-local COMET_HZ = 0.05
+local COMET_MAX_DT = 0.1    -- cap per-frame advance so hitches don't skip the sweep
 
 function ns.NewBar(parent, height)
     height = height or 9
@@ -923,6 +924,7 @@ function Bar:StartComet(flow)
         if self.cometOn then return end
         self.cometOn = true
         self.cometT = 0
+        self.cometClock = ns.animClock
         self:CometStep()
     end)
     if not ok then ns.ReportError("bar:StartComet", err) end
@@ -963,8 +965,10 @@ function Bar:CometStep()
 
         local flow = self.cometFlow
         local loop = flow and COMET_TRAVEL or COMET_LOOP
-        self.cometT = (self.cometT or 0) + COMET_HZ
-        if self.cometT >= loop then self.cometT = self.cometT - loop end
+        local now = ns.animClock
+        local dt = ns.clamp(now - (self.cometClock or now), 0, COMET_MAX_DT)
+        self.cometClock = now
+        self.cometT = ((self.cometT or 0) + dt) % loop
 
         if flow or self.cometT < COMET_TRAVEL then
             self:LayoutComet(self.cometT / COMET_TRAVEL, fw)
@@ -974,7 +978,9 @@ function Bar:CometStep()
             self:LayoutArrival((self.cometT - COMET_TRAVEL) / COMET_ARRIVE, fw)
         end
 
-        self.cometTimer = ns.After(COMET_HZ, function() self:CometStep() end)
+        -- a 0s timer fires on the next frame
+        self._cometStepFn = self._cometStepFn or function() self:CometStep() end
+        self.cometTimer = ns.After(0, self._cometStepFn)
     end)
     if not ok then ns.ReportError("bar:CometStep", err) end
 end
