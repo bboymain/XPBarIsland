@@ -2,6 +2,12 @@
 
 Every update to XPBar Island, in plain (and slightly caffeinated) English.
 
+## 1.0.13: The "No Boxes, Just Bonuses" Update
+
+* **The clean stack:** Level-up stat gains, your kill streak, and tier announcements now sit in that order beneath the island. Each follows the island as it opens and closes, and remaining lines slide up when another disappears.
+* **Streaks without clutter:** No more boxed streak label or separate timer bar. Tier-colored fading lines now count down around the streak text and next-tier hint.
+* **Test before your next ding:** `/xpbar testlevelup` now previews sample Health, Mana (when available), and attribute gains alongside Supernova, without changing your character's stats.
+
 ## 1.0.12: The "Level Up, Lighten Up" Update
 
 * **No more popup box!** Level-up Health, Mana and your biggest attribute gain now float in one clean line under the island, with no duplicate level number.
