@@ -43,6 +43,64 @@ f:EnableMouse(true)
 if ns.API.canClip then pcall(f.SetClipsChildren, f, true) end
 island.frame = f
 
+-- Floating announcements all share the island's *live* bottom edge. Keeping
+-- each frame anchored to both edges also keeps it the island's current width.
+-- Only visible slots consume space; the rest spring into the vacated space.
+local UNDER_ORDER = { "stats", "streak", "tier" }
+local UNDER_GAP = 4
+island.underLines = {}
+
+function island:RegisterUnderLine(key, frame, height)
+    local slot = { frame = frame, height = height or 30, visible = false, offset = 8 }
+    self.underLines[key] = slot
+    frame:ClearAllPoints()
+    frame:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 0, -8)
+    frame:SetPoint("TOPRIGHT", f, "BOTTOMRIGHT", 0, -8)
+    frame:SetHeight(slot.height)
+    frame:Hide()
+end
+
+function island:LayoutUnderLines()
+    local offset = 8
+    for _, key in ipairs(UNDER_ORDER) do
+        local slot = self.underLines[key]
+        if slot and slot.visible then
+            local target = offset
+            if slot.tween then ns.KillTween(slot.tween); slot.tween = nil end
+            local from = slot.offset or target
+            local function at(y)
+                slot.offset = y
+                slot.frame:ClearAllPoints()
+                slot.frame:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 0, -y)
+                slot.frame:SetPoint("TOPRIGHT", f, "BOTTOMRIGHT", 0, -y)
+            end
+            if not ns.db or ns.db.animations == "Off" or math.abs(from - target) < 0.1 then
+                at(target)
+            else
+                local feel = FEEL[ns.db.feel] or FEEL.Springy
+                slot.tween = ns.Tween({
+                    dur = feel.dur, from = from, to = target, ease = feel.ease,
+                    set = at,
+                    done = function() at(target); slot.tween = nil end,
+                })
+            end
+            offset = offset + slot.height + UNDER_GAP
+        end
+    end
+end
+
+function island:SetUnderLineVisible(key, visible)
+    local slot = self.underLines[key]
+    if not slot or slot.visible == visible then return end
+    slot.visible = visible
+    if visible then slot.frame:Show()
+    else
+        if slot.tween then ns.KillTween(slot.tween); slot.tween = nil end
+        slot.frame:Hide()
+    end
+    self:LayoutUnderLines()
+end
+
 local function tex(layer, sub, parent)
     return (parent or f):CreateTexture(nil, layer, nil, sub)
 end
@@ -541,51 +599,113 @@ island.etaFS:SetPoint("BOTTOMRIGHT", rightBlock, "BOTTOMRIGHT", 0, 0)
 island.etaFS:SetJustifyH("RIGHT")
 island.etaFS:SetTextColor(0.62, 0.62, 0.62, 1)
 
--- --- kill streak tag (parented to UIParent so the island's clipping does not
--- hide it under the island)
+-- --- floating kill-streak line --------------------------------------------
+-- The 30px-high slot matches the island width. Its visible ornament is capped
+-- at 400px, with timer strokes shrinking *toward* the text on both sides.
 local streakTag = CreateFrame("Frame", nil, UIParent)
-streakTag:SetPoint("TOP", f, "BOTTOM", 0, -8)
-streakTag:SetHeight(20)
 streakTag:SetFrameStrata("MEDIUM")
 streakTag:SetFrameLevel((f:GetFrameLevel() or 0) + 6)
-streakTag:Hide()
+if streakTag.EnableMouse then streakTag:EnableMouse(false) end
 island.streakTag = streakTag
-streakTag.bg = streakTag:CreateTexture(nil, "BACKGROUND", nil, 0)
-ns.Paint(streakTag.bg, 0.051, 0.043, 0.031, 1)
-streakTag.bg:SetAllPoints(streakTag)
-streakTag.border = {}
-for i = 1, 4 do
-    local t = streakTag:CreateTexture(nil, "BORDER", nil, 1)
-    t:SetTexture(ns.Media.white)
-    t:SetVertexColor(1, 0.82, 0, 1)
-    streakTag.border[i] = t
-end
-streakTag.label = streakTag:CreateFontString(nil, "OVERLAY")
-ns.StyleText(streakTag.label, 14, "bold")
-streakTag.label:SetPoint("CENTER", streakTag, "CENTER", 0, 0)
-streakTag.track = streakTag:CreateTexture(nil, "BACKGROUND", nil, -1)
-ns.Paint(streakTag.track, 0.133, 0.118, 0.098, 1)
-streakTag.track:SetHeight(2)
-streakTag.fill = streakTag:CreateTexture(nil, "ARTWORK", nil, 0)
-streakTag.fill:SetHeight(2)
+island:RegisterUnderLine("streak", streakTag, 30)
 
-local STREAK_GOLD = ns.HexA("#FFD100")
+local content = CreateFrame("Frame", nil, streakTag)
+content:SetSize(400, 30)
+content:SetPoint("CENTER", streakTag, "CENTER", 0, 0)
+streakTag.content = content
+local group = CreateFrame("Frame", nil, content)
+group:SetSize(1, 30)
+group:SetPoint("CENTER", content, "CENTER", 0, 0)
+streakTag.textGroup = group
+
+local function streakFont(fs, size)
+    ns.StyleText(fs, size, "bold")
+    local font, sz = fs:GetFont()
+    if not (font and sz and pcall(fs.SetFont, fs, font, sz, "OUTLINE")) then
+        fs:SetShadowColor(0, 0, 0, 1)
+        fs:SetShadowOffset(1, -1)
+    end
+end
+
+streakTag.label = group:CreateFontString(nil, "OVERLAY")
+streakFont(streakTag.label, 15)
+streakTag.label:SetPoint("LEFT", group, "LEFT", 0, 0)
+streakTag.hint = group:CreateFontString(nil, "OVERLAY")
+streakFont(streakTag.hint, 13)
+
+local function newRule(startSide)
+    local base = content:CreateTexture(nil, "ARTWORK", nil, 0)
+    ns.WhiteTexture(base)
+    base:SetHeight(1)
+    if startSide == "left" then
+        base:SetPoint("LEFT", content, "LEFT", 0, 0)
+        base:SetPoint("RIGHT", group, "LEFT", -16, 0)
+    else
+        base:SetPoint("LEFT", group, "RIGHT", 16, 0)
+        base:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+    end
+    local bright = content:CreateTexture(nil, "ARTWORK", nil, 1)
+    bright:SetTexture(ns.Media.white)
+    bright:SetHeight(1)
+    if startSide == "left" then bright:SetPoint("RIGHT", base, "RIGHT", 0, 0)
+    else bright:SetPoint("LEFT", base, "LEFT", 0, 0) end
+    return base, bright
+end
+streakTag.leftBase, streakTag.leftBright = newRule("left")
+streakTag.rightBase, streakTag.rightBright = newRule("right")
+
 local function streakColor(n)
     local tier = ns.StreakTier and ns.StreakTier(n)
-    if tier and tier.color then return ns.HexA(tier.color) end
-    return STREAK_GOLD
+    return ns.HexA(tier and tier.color or ns.Theme().gold)
 end
 
+-- Recompute only when the string, font, island width or theme changes.
 function island:LayoutStreakTag()
     local tag = self.streakTag
-    if not tag then return end
-    local b = tag.border
-    b[1]:ClearAllPoints(); b[1]:SetPoint("TOPLEFT", tag, "TOPLEFT", 0, 0); b[1]:SetPoint("TOPRIGHT", tag, "TOPRIGHT", 0, 0); b[1]:SetHeight(1)
-    b[2]:ClearAllPoints(); b[2]:SetPoint("BOTTOMLEFT", tag, "BOTTOMLEFT", 0, 0); b[2]:SetPoint("BOTTOMRIGHT", tag, "BOTTOMRIGHT", 0, 0); b[2]:SetHeight(1)
-    b[3]:ClearAllPoints(); b[3]:SetPoint("TOPLEFT", tag, "TOPLEFT", 0, 0); b[3]:SetPoint("BOTTOMLEFT", tag, "BOTTOMLEFT", 0, 0); b[3]:SetWidth(1)
-    b[4]:ClearAllPoints(); b[4]:SetPoint("TOPRIGHT", tag, "TOPRIGHT", 0, 0); b[4]:SetPoint("BOTTOMRIGHT", tag, "BOTTOMRIGHT", 0, 0); b[4]:SetWidth(1)
-    tag.track:ClearAllPoints(); tag.track:SetPoint("TOPLEFT", tag, "BOTTOMLEFT", 0, -1); tag.track:SetPoint("TOPRIGHT", tag, "BOTTOMRIGHT", 0, -1)
-    tag.fill:ClearAllPoints(); tag.fill:SetPoint("TOPLEFT", tag.track, "TOPLEFT", 0, 0)
+    local inner = math.min(400, math.max(1, tag:GetWidth() or f:GetWidth() or 400))
+    tag.content:SetWidth(inner)
+    streakFont(tag.label, 15)
+    streakFont(tag.hint, 13)
+    tag.label:SetWidth(900)
+    local labelWidth = math.ceil(tag.label:GetStringWidth() or 0) + 2
+    tag.label:SetWidth(labelWidth)
+    local hintWidth = 0
+    if tag._hint and tag._hint ~= "" then
+        tag.hint:SetText(tag._hint)
+        tag.hint:SetWidth(900)
+        hintWidth = math.ceil(tag.hint:GetStringWidth() or 0) + 2
+    end
+    local allowed = math.max(1, inner - 2 * (16 + 12))
+    if labelWidth + (hintWidth > 0 and hintWidth + 12 or 0) > allowed then hintWidth = 0 end
+    if hintWidth > 0 then
+        tag.hint:SetWidth(hintWidth)
+        tag.hint:ClearAllPoints()
+        tag.hint:SetPoint("LEFT", tag.label, "RIGHT", 12, 0)
+        tag.hint:Show()
+    else
+        tag.hint:Hide()
+    end
+    local actual = labelWidth + (hintWidth > 0 and hintWidth + 12 or 0)
+    tag.textGroup:SetWidth(math.max(1, actual))
+    tag.textGroup:SetScale(math.min(1, allowed / math.max(1, actual)))
+end
+
+local function updateStreakRules(tag, col, frac)
+    local ring = ns.HexA(ns.Theme().ring)
+    ns.Paint(tag.leftBase, ring[1], ring[2], ring[3], 0.25)
+    ns.Paint(tag.rightBase, ring[1], ring[2], ring[3], 0.25)
+    ns.Gradient(tag.leftBright, { col[1], col[2], col[3], 0 },
+        { col[1], col[2], col[3], 1 }, true)
+    ns.Gradient(tag.rightBright, { col[1], col[2], col[3], 1 },
+        { col[1], col[2], col[3], 0 }, true)
+    if frac <= 0 then
+        tag.leftBright:Hide(); tag.rightBright:Hide()
+    else
+        tag.leftBright:Show(); tag.rightBright:Show()
+        -- Left/right base widths are driven by the text width and island width.
+        tag.leftBright:SetWidth(math.max(0.1, (tag.leftBase:GetWidth() or 0) * frac))
+        tag.rightBright:SetWidth(math.max(0.1, (tag.rightBase:GetWidth() or 0) * frac))
+    end
 end
 
 function island:OnStreakKill()
@@ -594,11 +714,11 @@ function island:OnStreakKill()
     local tag = self.streakTag
     if self._streakPop then ns.KillTween(self._streakPop) end
     local amp = 1 + 0.4 * strengthScale()
-    tag:SetScale(amp)
+    tag.content:SetScale(amp)
     self._streakPop = ns.Tween({
         dur = 0.5, from = amp, to = 1.0, ease = ns.cubicBezier(0.34, 1.8, 0.5, 1),
-        set = function(v) tag:SetScale(v) end,
-        done = function() self._streakPop = nil end,
+        set = function(v) tag.content:SetScale(v) end,
+        done = function() tag.content:SetScale(1); self._streakPop = nil end,
     })
 end
 
@@ -606,21 +726,24 @@ function island:UpdateStreak()
     local ok, err = pcall(function()
         local tag = self.streakTag
         if not tag then return end
-        local on = (ns.db and ns.db.streak ~= false) and ((ns.db and ns.db.animations) ~= "Off")
+        local on = ns.db and ns.db.streak ~= false and ns.db.animations ~= "Off"
         local active, n = ns.StreakActive()
         local key = ns.data and ns.data.ActiveKey and ns.data:ActiveKey()
-        local lv = ns.levelUpUntil and GetTime() < ns.levelUpUntil
-        local show = on and active and key == "xp" and not lv
+        -- Intentionally show during level-up; stats and streak have separate
+        -- stack slots rather than competing for the same space.
+        local show = on and active and key == "xp"
 
         if not show then
             if tag:IsShown() and not self._streakFade then
                 self._streakFade = true
                 if self._streakFadeTween then ns.KillTween(self._streakFadeTween) end
                 self._streakFadeTween = ns.Tween({
-                    dur = 0.25, from = 1, to = 0, ease = ns.easeOutCubic,
+                    dur = 0.25, from = tag:GetAlpha() or 1, to = 0,
+                    ease = ns.easeOutCubic,
                     set = function(v) tag:SetAlpha(v) end,
                     done = function()
-                        tag:Hide(); tag:SetAlpha(1)
+                        self:SetUnderLineVisible("streak", false)
+                        tag:SetAlpha(1)
                         self._streakFade = false; self._streakFadeTween = nil
                     end,
                 })
@@ -639,39 +762,50 @@ function island:UpdateStreak()
         local col = streakColor(n)
         local tier = ns.StreakTier and ns.StreakTier(n)
         local title = tier and ((ns.StreakTitle and ns.StreakTitle(tier)) or tier.title)
-        local base = title and (title .. "  x" .. n) or ("x" .. n)
+        local base = title and (title .. " x" .. n) or ("x" .. n)
         if ns.streak and ns.streak.newBest then base = base .. " - best!" end
-        if tag._base ~= base then
-            tag._base = base
-            -- next-goal hint, appended only while it still fits comfortably
-            local txt = base
-            local nextTier = ns.NextStreakTier and ns.NextStreakTier(n)
-            if nextTier then
-                local nextTitle = (ns.StreakTitle and ns.StreakTitle(nextTier)) or nextTier.title
-                if nextTitle then
-                    local withHint = base .. "   " .. (nextTier.n - n) .. " more to " .. nextTitle
-                    tag.label:SetText(withHint)
-                    if (tag.label:GetStringWidth() or 0) <= 360 then txt = withHint end
-                end
-            end
-            tag._txt = txt
-            tag.label:SetText(txt)
-            tag.label:SetTextColor(col[1], col[2], col[3], 1)
+        local hint = ""
+        local nextTier = ns.NextStreakTier and ns.NextStreakTier(n)
+        if nextTier then
+            local nextTitle = (ns.StreakTitle and ns.StreakTitle(nextTier)) or nextTier.title
+            if nextTitle then hint = (nextTier.n - n) .. " more to " .. nextTitle end
         end
-        local w = (tag.label:GetStringWidth() or 40) + 16
-        tag:SetWidth(w); tag:SetHeight(20)
-        self:LayoutStreakTag()
-        for i = 1, 4 do tag.border[i]:SetVertexColor(col[1], col[2], col[3], 1) end
-        tag.fill:SetVertexColor(col[1], col[2], col[3], 1)
-        local frac = ns.clamp(1 - (GetTime() - (ns.streak.lastAt or 0)) / 20, 0, 1)
-        tag.fill:SetWidth(math.max(0, w * frac))
-        if not tag:IsShown() then tag:Show() end
+        local theme = ns.Theme()
+        local signature = base .. "|" .. hint .. "|" .. tostring(theme.ring) ..
+            "|" .. tostring(theme.gold) .. "|" .. tostring(tier and tier.color or "") ..
+            "|" .. tostring(ns.db.font) .. "|" .. tostring(ns.db.textSize)
+        local inner = math.min(400, tag:GetWidth() or 400)
+        if tag._signature ~= signature or tag._lastInner ~= inner then
+            tag._signature = signature; tag._lastInner = inner
+            tag._hint = hint
+            tag.label:SetText(base)
+            tag.label:SetTextColor(col[1], col[2], col[3], 1)
+            tag.hint:SetTextColor(ns.Hex("#B8B0A0"))
+            self:LayoutStreakTag()
+        end
 
+        local frac = ns.clamp(1 - (GetTime() - (ns.streak.lastAt or 0)) / 20, 0, 1)
+        -- Cache styling; update just the shrinking timer width on each frame.
+        if tag._ruleSignature ~= signature then
+            tag._ruleSignature = signature
+            updateStreakRules(tag, col, frac)
+        else
+            if frac <= 0 then
+                tag.leftBright:Hide(); tag.rightBright:Hide()
+            else
+                tag.leftBright:Show(); tag.rightBright:Show()
+                tag.leftBright:SetWidth(math.max(0.1, (tag.leftBase:GetWidth() or 0) * frac))
+                tag.rightBright:SetWidth(math.max(0.1, (tag.rightBase:GetWidth() or 0) * frac))
+            end
+        end
+
+        if not tag:IsShown() then
+            self:SetUnderLineVisible("streak", true)
+        end
         if self._streakN ~= n then
             self._streakN = n
             self:OnStreakKill()
         end
-
         if self._streakBarSig ~= n and self.bar and self.bar.SetStreak then
             self._streakBarSig = n
             self.bar:SetStreak(true, n, col)
