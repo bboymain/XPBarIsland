@@ -2,6 +2,15 @@
 
 Every update to XPBar Island, in plain (and slightly caffeinated) English.
 
+## 1.0.10: The "Smooth Operator" Update
+
+Thanks to **@gridrek** for the three fixes in this release.
+
+* **Fixed: Kills to level counted a quest turn-in as a kill** - a big quest made the estimate collapse to about 1 kill left, because quest XP replaced the per-kill value. Only a named mob kill updates it now, and group and raid kill messages count too. (Thanks @gridrek!)
+* **Fixed: one low-level mob could swing Kills to level** - the estimate now averages your last 10 kills at the current level and works the rested pool into the maths, so it stays steady and no longer doubles when rested runs out. The recent kills survive /reload and reset on level-up. (Thanks @gridrek!)
+* **Fixed: the idle comet sweep was choppy** - it now steps every frame like the other pulses instead of ticking at about 15 updates per second. (Thanks @gridrek!)
+* **Fixed: the level-up summary could error on clients that keep health and stat values secret** - "attempt to perform arithmetic on a secret number value" took the whole card down. A secret or missing value now drops only its own row. (GitHub issue #4 - thanks @andoys!)
+
 ## 1.0.9: The "Helping Hands" Update
 
 Thanks to **@dstjohniii** for both fixes in this release.

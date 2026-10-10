@@ -24,7 +24,7 @@ function ns.AddonVersion()
         local ok, res = pcall(_G.GetAddOnMetadata, ADDON, "Version")
         if ok then v = res end
     end
-    return tostring(v or "1.0.9")
+    return tostring(v or "1.0.10")
 end
 
 -- ===========================================================================
@@ -590,6 +590,7 @@ ns.changelog = {
     ["1.0.7"] = "The collapsed bar no longer lets the Resting tag overlap the bars-to-level text.",
     ["1.0.8"] = "New Level-up summary toggle under Behavior if you want the stats card off.",
     ["1.0.9"] = "Battleground chat and next-spell tooltip fixes, thanks to @dstjohniii.",
+    ["1.0.10"] = "Kills to level ignores quest XP and handles the rested pool, the comet sweep is smoother, and the level-up summary no longer errors on clients with secret values.",
 }
 
 local tip
