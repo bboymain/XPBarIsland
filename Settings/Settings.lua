@@ -362,7 +362,7 @@ local function buildBehavior(page)
         function() return ns.db.streak ~= false end, function(v) setAndRefresh("streak", v) end))
     page:addRow(W.Checkbox(page.content, "Level-up animation", "Supernova burst when you level up",
         function() return ns.db.levelUpFx ~= false end, function(v) setAndRefresh("levelUpFx", v) end))
-    page:addRow(W.Checkbox(page.content, "Level-up summary", "Show the stats gained in a card when you level up",
+    page:addRow(W.Checkbox(page.content, "Level-up summary", "Show a floating stat-gain line under the island",
         function() return ns.db.levelUpSummary ~= false end, function(v) setAndRefresh("levelUpSummary", v) end))
     page:addRow(W.Checkbox(page.content, "Show tips", "Welcome and update hints under the island",
         function() return ns.db.tips ~= false end, function(v) setAndRefresh("tips", v) end))
@@ -1095,7 +1095,7 @@ local function buildQuick()
             { label = "Smooth", value = "Smooth" } }, "Springy")
         qswitch(s, "streak", "Kill streak", "Count kills and glow the bar")
         qswitch(s, "levelUpFx", "Level-up animation", "Supernova burst when you level up")
-        qswitch(s, "levelUpSummary", "Level-up summary", "Card with the stats gained on level-up")
+        qswitch(s, "levelUpSummary", "Level-up summary", "Floating stat-gain line under the island")
     end)
 
     qsect("Effects", "Effects", "Idle and gain effects", function(s)
@@ -1535,7 +1535,7 @@ local STUDIO_BUILD = {
             { label = "Springy", value = "Springy" }, { label = "Snappy", value = "Snappy" }, { label = "Smooth", value = "Smooth" } }, "Springy")
         qswitch(s, "streak", "Kill streak", "Count kills and glow the bar")
         qswitch(s, "levelUpFx", "Level-up animation", "Supernova burst when you level up")
-        qswitch(s, "levelUpSummary", "Level-up summary", "Card with the stats gained on level-up")
+        qswitch(s, "levelUpSummary", "Level-up summary", "Floating stat-gain line under the island")
         qswitch(s, "tips", "Show tips", "Chat hints about new features")
     end,
     ["Party & share"] = function(s)
