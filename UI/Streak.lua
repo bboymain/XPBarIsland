@@ -8,21 +8,34 @@ local ADDON, ns = ...
 -- toggle and the Animations setting, and plays no sound.
 -- ---------------------------------------------------------------------------
 local banner = CreateFrame("Frame", nil, UIParent)
-banner:SetSize(360, 52)
-banner:SetPoint("TOP", UIParent, "TOP", 0, -70)
 banner:SetFrameStrata("MEDIUM")
 if banner.SetMouseClickEnabled then banner:SetMouseClickEnabled(false) end
 if banner.SetMouseMotionEnabled then banner:SetMouseMotionEnabled(false) end
 if banner.EnableMouse then banner:EnableMouse(false) end
-banner:Hide()
+ns.island:RegisterUnderLine("tier", banner, 42)
 
-banner.title = banner:CreateFontString(nil, "OVERLAY")
-if ns.StyleText then ns.StyleText(banner.title, 20, "extrabold", "OUTLINE") end
-banner.title:SetPoint("CENTER", banner, "CENTER", 0, 9)
+-- Pop the text only; the full-width, 42px stack slot must never scale away
+-- from the island's edges while the announcement animates.
+local content = CreateFrame("Frame", nil, banner)
+content:SetSize(360, 42)
+content:SetPoint("CENTER", banner, "CENTER", 0, 0)
 
-banner.sub = banner:CreateFontString(nil, "OVERLAY")
-if ns.StyleText then ns.StyleText(banner.sub, 11, "bold", "OUTLINE") end
-banner.sub:SetPoint("CENTER", banner, "CENTER", 0, -13)
+local function outlined(fs, size, weight)
+    ns.StyleText(fs, size, weight)
+    local font, sz = fs:GetFont()
+    if not (font and sz and pcall(fs.SetFont, fs, font, sz, "OUTLINE")) then
+        fs:SetShadowColor(0, 0, 0, 1)
+        fs:SetShadowOffset(1, -1)
+    end
+end
+
+banner.title = content:CreateFontString(nil, "OVERLAY")
+outlined(banner.title, 20, "extrabold")
+banner.title:SetPoint("CENTER", content, "CENTER", 0, 9)
+
+banner.sub = content:CreateFontString(nil, "OVERLAY")
+outlined(banner.sub, 11, "bold")
+banner.sub:SetPoint("CENTER", content, "CENTER", 0, -13)
 banner.sub:SetTextColor(1, 1, 1, 1)
 
 -- Pop-in 0.2s, hold 1.0s, fade 0.3s (1.5s total).
@@ -50,19 +63,19 @@ function ns.StreakAnnounce(tier, n, newBest)
     if hideTimer and ns.CancelTimer then ns.CancelTimer(hideTimer) end
     hideTimer = nil
 
-    banner:Show()
+    ns.island:SetUnderLineVisible("tier", true)
     local animate = ns.db and ns.db.animations ~= "Off" and ns.Tween and ns.easeOutBack
     if not animate then
         banner:SetAlpha(1)
-        banner:SetScale(1)
+        content:SetScale(1)
     else
         banner:SetAlpha(0)
-        banner:SetScale(0.9)
+        content:SetScale(0.9)
         tween = ns.Tween({
             dur = ANIM_IN, from = 0, to = 1, ease = ns.easeOutBack,
             set = function(v)
                 banner:SetAlpha(ns.clamp and ns.clamp(v, 0, 1) or v)
-                banner:SetScale(0.9 + 0.1 * v)
+                content:SetScale(0.9 + 0.1 * v)
             end,
             done = function() tween = nil end,
         })
@@ -74,13 +87,13 @@ function ns.StreakAnnounce(tier, n, newBest)
         if tween and ns.KillTween then ns.KillTween(tween) end
         tween = nil
         if not animate or not (ns.Tween and ns.easeOutCubic) then
-            banner:Hide()
+            ns.island:SetUnderLineVisible("tier", false)
             return
         end
         tween = ns.Tween({
             dur = ANIM_OUT, from = 1, to = 0, ease = ns.easeOutCubic,
             set = function(v) banner:SetAlpha(v) end,
-            done = function() tween = nil; banner:Hide() end,
+            done = function() tween = nil; ns.island:SetUnderLineVisible("tier", false) end,
         })
     end)
 end
