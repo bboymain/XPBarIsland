@@ -213,45 +213,57 @@ end
 -- ---------------------------------------------------------------------------
 local function buildPattern(fmt)
     if type(fmt) ~= "string" then return nil end
-    local p = fmt:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
+    -- escape magic characters, but not "%": it still marks the %s/%d below
+    local p = fmt:gsub("([%^%$%(%)%.%[%]%*%+%-%?])", "%%%1")
     p = p:gsub("%%s", "(.+)")
     p = p:gsub("%%d", "(%%d+)")
     return "^" .. p .. "$"
 end
 
+local function toAmount(s)
+    return s and tonumber((s:gsub("[^%d]", "")))
+end
+
+-- { global string, capture index of the mob name, of the XP amount }.
+-- Only messages that name a mob are kills: quest, exploration and other XP
+-- comes through unnamed.
+local KILL_FORMATS = {
+    { "COMBATLOG_XPGAIN_FIRSTPERSON",         1, 2 },
+    { "COMBATLOG_XPGAIN_FIRSTPERSON_FULL",    1, 2 },
+    { "COMBATLOG_XPGAIN_FIRSTPERSON_GROUP",   1, 2 },
+    { "COMBATLOG_XPGAIN_FIRSTPERSON_RAID",    1, 2 },
+    { "COMBATLOG_XPGAIN_EXHAUSTION1",         1, 2 },
+    { "COMBATLOG_XPGAIN_EXHAUSTION1_GROUP",   1, 2 },
+    { "COMBATLOG_XPGAIN_EXHAUSTION1_RAID",    1, 2 },
+    { "COMBATLOG_XPGAIN_FIRSTPERSON_UNNAMED", nil, 1 },
+    { "COMBATLOG_XPGAIN_EXHAUSTION1_UNNAMED", nil, 1 },
+}
+
 local killPatterns = {}
 local function initPatterns()
-    local names = {
-        "COMBATLOG_XPGAIN_FIRSTPERSON",
-        "COMBATLOG_XPGAIN_FIRSTPERSON_FULL",
-        "COMBATLOG_XPGAIN_FIRSTPERSON_UNNAMED",
-        "COMBATLOG_XPGAIN_EXHAUSTION1",
-        "COMBATLOG_XPGAIN_EXHAUSTION1_UNNAMED",
-    }
-    for _, n in ipairs(names) do
-        local fmt = _G[n]
-        local p = buildPattern(fmt)
-        if p then killPatterns[#killPatterns + 1] = p end
+    for _, f in ipairs(KILL_FORMATS) do
+        local p = buildPattern(_G[f[1]])
+        if p then
+            killPatterns[#killPatterns + 1] = { p = p, name = f[2], amount = f[3] }
+        end
     end
 end
 initPatterns()
 
+-- Returns the mob name (nil when the XP isn't from a kill) and the XP amount.
 local function parseKill(msg)
-    for _, p in ipairs(killPatterns) do
-        local a, b = msg:match(p)
-        if a then
-            local name, amount = a, b
-            if tonumber(a) and not tonumber(b) then
-                name, amount = nil, a
-            end
-            local amt = tonumber((amount or ""):gsub("[^%d]", ""))
-            if amt then return name, amt end
+    for _, k in ipairs(killPatterns) do
+        local caps = { msg:match(k.p) }
+        if caps[1] then
+            local name = k.name and caps[k.name]
+            local amt = toAmount(caps[k.amount])
+            if amt and not (name and tonumber(name)) then return name, amt end
         end
     end
     -- Last resort: any group of digits in an "XP gain" style message.
     local amt = msg:match("(%d[%d,]*%d)")
     if amt then
-        return nil, tonumber((amt:gsub("[^%d]", "")))
+        return nil, toAmount(amt)
     end
     return nil
 end
@@ -334,8 +346,11 @@ end)
 ns.On("CHAT_MSG_COMBAT_XP_GAIN", function(_, msg)
     if not msg then return end
     local name, amt = parseKill(msg)
-    if amt then session.killXP = amt end
-    if name then session.killName = name end
+    -- only kills update the per-kill XP; a quest turn-in must not count as one
+    if name and amt then
+        session.killXP = amt
+        session.killName = name
+    end
     -- gain text: prefer the parsed kill, fall back to plain XP
     local d = ns.xp()
     local text
