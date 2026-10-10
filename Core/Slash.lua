@@ -35,6 +35,8 @@ local function handler(msg)
             :format(tostring(ns.db.party), #ns.comms:List()))
     elseif msg == "testlevelup" then
         ns.PlayLevelUp(UnitLevel("player") or 1)
+        if ns.TestLevelUpSummary then ns.TestLevelUpSummary() end
+        print("sample level-up stats preview (no character stats changed)")
     elseif msg == "testxp" then
         ns.TestXPGain(1200)
         print("faked a 1,200 XP gain")
