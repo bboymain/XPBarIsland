@@ -2,6 +2,12 @@
 
 Every update to XPBar Island, in plain (and slightly caffeinated) English.
 
+## 1.0.12: The "Level Up, Lighten Up" Update
+
+* **No more popup box!** Level-up Health, Mana and your biggest attribute gain now float in one clean line under the island, with no duplicate level number.
+* **Theme-powered sparkle.** Fading dividers and gain colors follow your theme (and custom text accent), while the line slides in, shows off the gains and fades away.
+* Still tied to your Level-up animation and summary settings. Ding with less clutter!
+
 ## 1.0.11: The "Now You See XP" Update
 
 * **One last look:** The XP bar hangs out for a beat after combat, then takes a smooth 1.5-second bow. No more missing that last mob's XP!
