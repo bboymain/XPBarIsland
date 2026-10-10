@@ -145,7 +145,13 @@ local function buildXP()
     local rateText = rate and (ns.Short(ns.round(rate), compact) .. "/hr") or "--"
     local rateValue = rate
 
-    local kills = (x.killXP and x.killXP > 0) and math.ceil(remaining / x.killXP) or nil
+    -- killXP is the recent average without rested bonus.  Rested doubles each
+    -- kill until the pool runs out, so it covers up to half of what's left.
+    local kills
+    if x.killXP and x.killXP > 0 then
+        local restedBonus = math.min(x.rested or 0, remaining / 2)
+        kills = math.ceil((remaining - restedBonus) / x.killXP)
+    end
     local eta = kills and ("~" .. kills .. " kills") or "--"
 
     local timeToLevel
