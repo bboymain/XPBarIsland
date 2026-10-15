@@ -21,8 +21,13 @@ jobs:
 
       - name: Prepare a clean addon package
         run: |
+          # CurseForge changelog = just this version's section of CHANGELOG.md
+          awk '/^## /{n++} n==1' CHANGELOG.md > RELEASE_NOTES.md
           cat > .pkgmeta <<'PKGMETA'
           package-as: XPBarIsland
+          manual-changelog:
+            filename: RELEASE_NOTES.md
+            markup-type: markdown
           ignore:
             - .github
             - .gitignore
