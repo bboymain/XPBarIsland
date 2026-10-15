@@ -1728,7 +1728,9 @@ function island:UpdateFade()
         if self.hoverStrip then self.hoverStrip:Show() end
         return
     end
-    if self.hoverStrip then self.hoverStrip:Hide() end
+    -- keep the strip alive while open so a cursor parked at the screen edge
+    -- still counts as hovering (see the OnUpdate poll), else open/close loops
+    if self.hoverStrip then self.hoverStrip:SetShown(ns.db.mode == "Auto-hide") end
 
     -- "Fade until hovered": faint while the mouse is away and the island is
     -- collapsed; full alpha on hover or while the panel is open.
@@ -1866,6 +1868,7 @@ local strip = CreateFrame("Frame", nil, UIParent)
 strip:SetPoint("TOP", UIParent, "TOP", 0, 0)
 strip:SetSize(C_W, 18)
 strip:EnableMouse(true)
+strip:SetFrameStrata("BACKGROUND") -- never steal clicks from the island on top
 strip:Hide()
 island.hoverStrip = strip
 strip:SetScript("OnEnter", function() island:SetOpen(true, "hover") end)
@@ -1954,6 +1957,9 @@ f:SetScript("OnUpdate", function(_, elapsed)
     end
     if canPoll then
         local over = f:IsMouseOver()
+        if not over and island.expanded and ns.db.mode == "Auto-hide" then
+            over = strip:IsMouseOver()
+        end
         if not over and ns.Tooltip and ns.Tooltip.shown and ns.Tooltip.frame then
             over = ns.Tooltip.frame:IsMouseOver()
         end
