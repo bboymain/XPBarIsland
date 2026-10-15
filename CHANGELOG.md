@@ -2,6 +2,12 @@
 
 Every update to XPBar Island, in plain (and slightly caffeinated) English.
 
+## 1.0.14: The "Stop Flickering, Start Hiding" Update
+
+Thanks to **Dukul** for spotting this one and reporting it.
+
+* **Fixed: Auto-hide flickered like crazy at the top of the screen** - if you parked your mouse at the very top edge, the island kept opening and closing over and over until you moved the pointer down a little. It now opens once and stays open while your mouse is at the top, then tucks away when you move off. (Thanks @Dukul!)
+
 ## 1.0.13: The "No Boxes, Just Bonuses" Update
 
 * **The clean stack:** Level-up stat gains, your kill streak, and tier announcements now sit in that order beneath the island. Each follows the island as it opens and closes, and remaining lines slide up when another disappears.
