@@ -6,7 +6,7 @@ Every update to XPBar Island, in plain (and slightly caffeinated) English.
 
 Thanks to **Dukul** for spotting this one and reporting it.
 
-* **Fixed: Auto-hide flickered like crazy at the top of the screen** - if you parked your mouse at the very top edge, the island kept opening and closing over and over until you moved the pointer down a little. It now opens once and stays open while your mouse is at the top, then tucks away when you move off. (Thanks @Dukul!)
+* **Fixed: Auto-hide flickered like crazy at the top of the screen** - if you parked your mouse at the very top edge, the island kept opening and closing over and over until you moved the pointer down a little. It now opens once and stays open while your mouse is at the top, then tucks away when you move off. (Thanks Dukul!)
 
 ## 1.0.13: The "No Boxes, Just Bonuses" Update
 
