@@ -2,7 +2,7 @@
 
 Every update to XPBar Island, in plain (and slightly caffeinated) English.
 
-## Unreleased: Floating Pill
+## 1.0.15: Floating Pill
 
 * Added Shape (Attached or Pill), a Pill theme using Default colors, and a live 0?60 px Top offset setting (12 px by default).
 * Pills have a complete rounded border, animated corners, and slide fully offscreen in Auto-hide. Announcements and effects follow the floating island.
