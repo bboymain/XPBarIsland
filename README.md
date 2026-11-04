@@ -1,6 +1,6 @@
 # XPBar Island
 
-A standalone World of Warcraft addon (Classic-era client, `Interface: 16001`) that shows
+A standalone World of Warcraft: Forever addon (`Interface: 16001`, client 1.60.1) that shows
 experience, reputation, honor, pet experience and skills in one "island" flush to the top
 centre of the screen. Built from scratch for the Live mockup: no other
 addon is required and no other addon's code, strings or art is used.
@@ -19,9 +19,9 @@ Apache License 2.0 (`Media/Fonts/LICENSE-OpenSans-Apache-2.0.txt`). See
 ## Install
 
 1. Close the game.
-2. Copy the `XPBarIsland` folder into:
-   `World of Warcraft\_classic_beta_\Interface\AddOns\`
-   (use whatever client folder you run; the folder name must stay `XPBarIsland`).
+2. Copy the `XPBarIsland` folder into your WoW Forever client:
+   `World of Warcraft\<Forever client>\Interface\AddOns\`
+   (the folder name must stay `XPBarIsland`).
 3. Start the game and enable **XPBar Island** on the character screen (AddOns button).
 4. Optional: `/console scriptErrors 1` before logging in to see any Lua error in chat.
 

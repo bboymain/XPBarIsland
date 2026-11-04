@@ -17,7 +17,7 @@ assignees: ""
 
 **Addon version** (seen in the AddOns list or from `/xpbar`):
 
-**WoW client / build** (e.g. Classic Era 1.15.x, Interface 16001):
+**WoW client / build** (e.g. WoW Forever 1.60.1, Interface 16001):
 
 **Other addons that might conflict:**
 
