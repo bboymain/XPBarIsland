@@ -24,10 +24,10 @@ ns.Colors = {
     skills     = { ns.HexA("#3FE0CC"), ns.HexA("#1B8F80") },
 }
 
--- Four themes.  Every theme-dependent colour lives here; UI files read
+-- Theme tokens.  Every theme-dependent colour lives here; UI files read
 -- ns.Theme() and never test the theme name.  "Default" reproduces the original
 -- look exactly.  font stays Alegreya/UI Sans for readability in every theme.
-ns.ThemeList = { "Default", "WoW", "Classic", "WoW Forever" }
+ns.ThemeList = { "Default", "WoW", "Classic", "WoW Forever", "Pill" }
 
 -- WoW theme XP-bar colour variants (db.wowBar).  Each is a 4-stop vertical
 -- gradient plus the rgb used for its outer glow.
@@ -113,6 +113,16 @@ ns.Themes = {
     },
 }
 
+ns.Themes.Pill = ns.Themes.Default
+
+function ns.PillOn()
+    return ns.db and (ns.db.theme == "Pill" or ns.db.shape == "Pill") or false
+end
+
+function ns.TopOffset()
+    return ns.PillOn() and math.max(0, math.min(60, ns.db.posY or 12)) or 0
+end
+
 function ns.Theme()
     local name = (ns.db and ns.db.theme) or "WoW Forever"
     local t = ns.Themes[name] or ns.Themes["WoW Forever"]
@@ -159,7 +169,8 @@ ns.defaults = {
     preset       = "Custom",
     activeType   = "xp",
     posX         = 0,
-    posY         = 0,
+    shape        = "Attached",
+    posY         = 12,
     minimap      = { hide = true, angle = 220 },   -- minimap button hidden by default
     v1           = false,           -- hidden Version 1 view (/xpbar v1)
     -- Quick panel
@@ -229,6 +240,7 @@ function ns.InitDB()
     if type(DB.char) ~= "table" then DB.char = {} end
 
     ns.db = DB.profile
+    if ns.db.shape == nil then ns.db.posY = 12 end
     -- the kill streak setting was renamed from streakOn to streak
     if ns.db.streak == nil and ns.db.streakOn ~= nil then ns.db.streak = ns.db.streakOn end
     ns.db.streakOn = nil

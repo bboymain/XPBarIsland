@@ -163,7 +163,7 @@ local function CreatePage(parent, width, height)
     apply:SetPoint("RIGHT", okay, "LEFT", -6, 0)
     local resetPos = W.Button(foot, "Reset position", function()
         ns.db.posX = 0
-        ns.db.posY = 0
+        ns.db.posY = 12
         ns.island:ApplyPosition()
     end)
     resetPos:SetPoint("RIGHT", apply, "LEFT", -6, 0)
@@ -311,8 +311,15 @@ local function buildDisplay(page)
     end
 
     page:addRow(W.Segmented(page.content, "Theme", "Colours and fonts of the island",
-        { { label = "Default", value = "Default" }, { label = "WoW", value = "WoW" }, { label = "Classic", value = "Classic" }, { label = "WoW Forever", value = "WoW Forever" } },
+        { { label = "Default", value = "Default" }, { label = "WoW", value = "WoW" }, { label = "Classic", value = "Classic" }, { label = "WoW Forever", value = "WoW Forever" }, { label = "Pill", value = "Pill" } },
         function() return ns.db.theme end, function(v) setAndRefresh("theme", v) end))
+
+    page:addRow(W.Segmented(page.content, "Shape", "Pill floats below the screen edge",
+        { { label = "Attached", value = "Attached" }, { label = "Pill", value = "Pill" } },
+        function() return ns.db.shape end, function(v) setAndRefresh("shape", v) end))
+    page:addRow(W.Slider(page.content, "Top offset", "Distance below the top edge (Pill only)", 0, 60, 1,
+        function() return ns.db.posY end, function(v) setAndRefresh("posY", v) end,
+        function(v) return ns.round(v) .. "px" end))
 
     page:addRow(W.Segmented(page.content, "Display mode", "Classic is a thin bar. Auto-hide appears at the top edge.",
         { { label = "Full", value = "Full" }, { label = "Classic", value = "Classic" }, { label = "Auto-hide", value = "Auto-hide" }, { label = "Always open", value = "Always open" } },
@@ -703,7 +710,11 @@ local function applyProfile(name)
     if type(p) ~= "table" then return end
     ns.BeginBatch()
     local ok, err = pcall(function()
-        for k, v in pairs(p) do ns.db[k] = deepCopy(v) end
+        ns.db.shape = p.shape or "Attached"
+        ns.db.posY = p.shape and p.posY or 12
+        for k, v in pairs(p) do
+            if k ~= "posY" then ns.db[k] = deepCopy(v) end
+        end
         ns.db.profile = name
         if ns.char then
             if ns.db.switchPerChar then ns.char.profile = name end
@@ -1065,7 +1076,9 @@ local function buildQuick()
     qsect("Display", "Display", "Theme, mode, size", function(s)
         qseg(s, "theme", "Theme", "Colours and fonts", {
             { label = "Default", value = "Default" }, { label = "WoW", value = "WoW" },
-            { label = "Classic", value = "Classic" }, { label = "WoW Forever", value = "WoW Forever" } }, "Default")
+            { label = "Classic", value = "Classic" }, { label = "WoW Forever", value = "WoW Forever" }, { label = "Pill", value = "Pill" } }, "Default")
+        qseg(s, "shape", "Shape", "Pill floats below the screen edge", {
+            { label = "Attached", value = "Attached" }, { label = "Pill", value = "Pill" } }, "Attached")
         qseg(s, "mode", "Display mode", "Classic is a thin bar", {
             { label = "Full", value = "Full" }, { label = "Classic", value = "Classic" },
             { label = "Auto-hide", value = "Auto-hide" }, { label = "Always open", value = "Always open" } }, "Full")
@@ -1134,6 +1147,7 @@ local function buildQuick()
         qswitch(s, "showRate", "Rate block", "Show XP/hr and kills")
         qswitch(s, "showDots", "Party dots", "Show party markers on the bar")
         qswitch(s, "portrait", "Portrait", "Show the portrait")
+        qslider(s, "posY", "Top offset", "Distance below the top edge (Pill only)", 0, 60, 1, function(v) return ns.round(v) .. "px" end, 12)
         qslider(s, "width", "Width", "Island width", 380, 560, 10, function(v) return ns.round(v) .. "px" end, 460)
         qslider(s, "barThickness", "Bar thickness", "Bar height", 8, 18, 1, function(v) return ns.round(v) .. "px" end, 12)
         qslider(s, "textSize", "Text size", "Font scale", 80, 130, 5, function(v) return ns.round(v) .. "%" end, 100)
@@ -1253,7 +1267,7 @@ local function buildQuick()
     ns.Paint(fb, 0, 0, 0, 0.3)
     local resetS = W.Button(foot, "Reset session", function() if ns.session then ns.session:Reset() end; ns.MarkDirty() end)
     resetS:SetPoint("LEFT", foot, "LEFT", 12, 0)
-    local resetP = W.Button(foot, "Reset position", function() ns.db.posX = 0; ns.db.posY = 0; ns.db.posOffset = 0; if ns.island then ns.island:ApplyPosition() end end)
+    local resetP = W.Button(foot, "Reset position", function() ns.db.posX = 0; ns.db.posY = 12; ns.db.posOffset = 0; if ns.island then ns.island:ApplyPosition() end end)
     resetP:SetPoint("LEFT", resetS, "RIGHT", 6, 0)
     local contact = W.IconLink(foot, ns.Media.xIcon, ns.OpenContact, "Contact @mainlek on X.com (Twitter)", "Click to copy the link")
     contact:SetPoint("LEFT", resetP, "RIGHT", 14, 0)
@@ -1448,7 +1462,9 @@ local STUDIO_BUILD = {
             function() return ns.db.preset or "Custom" end, function(v) applyQuickPreset(v) end))
         qseg(s, "theme", "Theme", "Colours and fonts", {
             { label = "Default", value = "Default" }, { label = "WoW", value = "WoW" },
-            { label = "Classic", value = "Classic" }, { label = "WoW Forever", value = "WoW Forever" } }, "Default")
+            { label = "Classic", value = "Classic" }, { label = "WoW Forever", value = "WoW Forever" }, { label = "Pill", value = "Pill" } }, "Default")
+        qseg(s, "shape", "Shape", "Pill floats below the screen edge", {
+            { label = "Attached", value = "Attached" }, { label = "Pill", value = "Pill" } }, "Attached")
         qseg(s, "mode", "Display mode", "Classic is a thin bar", {
             { label = "Full", value = "Full" }, { label = "Classic", value = "Classic" },
             { label = "Auto-hide", value = "Auto-hide" }, { label = "Always open", value = "Always open" } }, "Full")
@@ -1463,6 +1479,7 @@ local STUDIO_BUILD = {
         qswitch(s, "showRate", "Rate block", "Show XP/hr and kills")
         qswitch(s, "showDots", "Party dots", "Show party markers")
         qswitch(s, "portrait", "Portrait", "Show the portrait")
+        qslider(s, "posY", "Top offset", "Distance below the top edge (Pill only)", 0, 60, 1, function(v) return ns.round(v) .. "px" end, 12)
         qslider(s, "width", "Width", "Island width", 380, 560, 10, function(v) return ns.round(v) .. "px" end, 460)
         qslider(s, "barThickness", "Bar thickness", "Bar height", 8, 18, 1, function(v) return ns.round(v) .. "px" end, 12)
         qslider(s, "textSize", "Text size", "Font scale", 80, 130, 5, function(v) return ns.round(v) .. "%" end, 100)
@@ -1937,7 +1954,7 @@ function Studio:resetPage()
     local ok, err = pcall(function()
         if key == "Layout" then
             for _, k in ipairs({ "showName", "showRange", "showPercent", "showRested", "showRate", "showDots", "portrait" }) do qset(k, true) end
-            qset("width", 460); qset("barThickness", 12); qset("textSize", 100); qset("posOffset", 0); qset("posX", 0); qset("posY", 0); qset("font", "Theme")
+            qset("width", 460); qset("barThickness", 12); qset("textSize", 100); qset("posOffset", 0); qset("posX", 0); qset("posY", 12); qset("shape", "Attached"); qset("font", "Theme")
         elseif key == "Colors" then
             qset("trimColor", false); qset("barColor", false); qset("textAccent", false); qset("wowBar", "Azure")
         elseif key == "Minimal" then

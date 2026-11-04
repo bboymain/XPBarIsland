@@ -1056,6 +1056,77 @@ function island:HideThinPieces()
     if self.thinChip then self.thinChip:Hide() end
 end
 
+function island:PillRadius(open)
+    if open then return 30 end
+    if ns.db.mode == "Classic" then return 14 end
+    return math.max(60, 48 + (ns.db.barThickness or 12)) / 2
+end
+
+function island:LayoutPill(w, h)
+    local on = ns.PillOn()
+    if not self.pillParts then self.pillParts = {} end
+    for _, t in ipairs(self.pillParts) do t:SetShown(on) end
+    if not on then return end
+    local th = ns.Theme()
+    local bw = self.thin and 1 or th.bw
+    local r = math.max(1, math.min(64, h / 2, self.pillRadius or self:PillRadius(self.expanded)))
+    local pixel = math.floor(r + 0.5)
+    local bg1, bg2 = ns.HexA(th.bg1), ns.HexA(th.bg2)
+    local function colorAt(depth)
+        local c = {}
+        for i = 1, 3 do c[i] = bg1[i] + (bg2[i] - bg1[i]) * depth / h end
+        c[4] = 1
+        return c
+    end
+    local x, y = ((pixel - 1) % 8) * 64, math.floor((pixel - 1) / 8) * 64
+    local function part(i, layer)
+        if not self.pillParts[i] then self.pillParts[i] = tex(layer, 3) end
+        local t = self.pillParts[i]
+        t:Show(); t:ClearAllPoints()
+        return t
+    end
+    for i, corner in ipairs({ "BOTTOMLEFT", "BOTTOMRIGHT", "TOPLEFT", "TOPRIGHT" }) do
+        local right, top = i % 2 == 0, i > 2
+        for edge = 0, 1 do
+            local t = part((i-1)*2+edge+1, edge == 1 and "BORDER" or "BACKGROUND")
+            local path = ns.Media.cornerFill14:gsub("CornerFill14", "PillCorner" .. (edge == 1 and bw or 0))
+            t:SetTexture(path)
+            local l, rr, tt, b = x/512, (x+pixel)/512, y/512, (y+pixel)/512
+            t:SetTexCoord(right and rr or l, right and l or rr, top and b or tt, top and tt or b)
+            t:SetPoint(corner, f, corner, 0, 0); t:SetSize(r, r)
+            if edge == 1 then
+                t:SetVertexColor(ns.Hex(self.pillPulseColor or th.trim))
+            else
+                t:SetVertexColor(1, 1, 1, 1)
+                ns.Gradient(t, colorAt(top and r or h), colorAt(top and 0 or h-r), false)
+            end
+        end
+    end
+    for i, top in ipairs({ true, false }) do
+        local fill = part(8+i, "BACKGROUND")
+        fill:SetPoint(top and "TOPLEFT" or "BOTTOMLEFT", f, top and "TOPLEFT" or "BOTTOMLEFT", r, 0)
+        fill:SetSize(math.max(1, w-2*r), r)
+        ns.WhiteTexture(fill)
+        ns.Gradient(fill, colorAt(top and r or h), colorAt(top and 0 or h-r), false)
+        local edge = part(10+i, "BORDER")
+        edge:SetPoint(top and "TOPLEFT" or "BOTTOMLEFT", fill, top and "TOPLEFT" or "BOTTOMLEFT", 0, 0)
+        edge:SetSize(math.max(1, w-2*r), bw)
+        ns.Paint(edge, ns.Hex(self.pillPulseColor or th.trim))
+    end
+    local middle = part(13, "BACKGROUND")
+    middle:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -r)
+    middle:SetSize(w, math.max(0.001, h-2*r))
+    ns.WhiteTexture(middle); ns.Gradient(middle, colorAt(h-r), colorAt(r), false)
+    for i, right in ipairs({ false, true }) do
+        local edge = part(13+i, "BORDER")
+        edge:SetPoint(right and "TOPRIGHT" or "TOPLEFT", middle, right and "TOPRIGHT" or "TOPLEFT", 0, 0)
+        edge:SetSize(bw, math.max(0.001, h-2*r)); ns.Paint(edge, ns.Hex(self.pillPulseColor or th.trim))
+    end
+    for _, name in ipairs({ "bg", "betweenFill", "borderL", "borderR", "borderB", "innerL", "innerR", "innerB", "cornerFillBL", "cornerFillBR", "cornerEdgeBL", "cornerEdgeBR" }) do
+        self[name]:Hide()
+    end
+end
+
 function island:LayoutBorders()
     local w, h = f:GetWidth(), f:GetHeight()
     local th = ns.Theme()
@@ -1158,6 +1229,7 @@ function island:LayoutBorders()
         self.bar:ShowThinText(false)
     end
 
+    if not self.tween then self.pillRadius = self:PillRadius(self.expanded) end
     self:ApplyRadius(r, h)
 
     -- Minimal (thin) bar: no island background while collapsed and not hovered.
@@ -1172,6 +1244,7 @@ function island:LayoutBorders()
     if self.betweenFill then
         if showBg then self.betweenFill:Show() else self.betweenFill:Hide() end
     end
+    self:LayoutPill(w, h)
 end
 
 function island:ApplyTheme()
@@ -1486,6 +1559,8 @@ function island:AnimateTo(open)
         local toW, toH = self:TargetSize(open)
         -- start from the current size, so a new tween mid-flight never jumps
         local fromW, fromH = f:GetWidth(), f:GetHeight()
+        local fromR = self.pillRadius or self:PillRadius(not open)
+        local toR = self:PillRadius(open)
         if fromH <= 1 then fromH = C_H end
         local feel = FEEL[ns.db.feel] or FEEL.Springy
         local instant = (ns.db.animations == "Off")
@@ -1501,6 +1576,7 @@ function island:AnimateTo(open)
         end
 
         if instant then
+            self.pillRadius = toR
             f:SetSize(toW, toH)
             self:LayoutBorders()
             if ns.panel then
@@ -1519,6 +1595,7 @@ function island:AnimateTo(open)
             set = function(eased)
                 local sok, serr = pcall(function()
                     -- sub-pixel sizes keep the motion smooth (no 1px stepping)
+                    self.pillRadius = lerp(fromR, toR, eased)
                     f:SetSize(lerp(fromW, toW, eased), lerp(fromH, toH, eased))
                     self:LayoutBorders()
                     if ns.panel then ns.panel:Reflow() end
@@ -1702,6 +1779,8 @@ function island:UpdateFade()
 
     -- Fade slowly after combat, but reveal the hidden island near its location.
     if ns.db.hideOutOfCombat then
+        if self.hideTween then ns.KillTween(self.hideTween); self.hideTween = nil end
+        self.hiddenTarget = nil
         if self.hiddenY ~= 0 then
             self.hiddenY = 0
             self:ApplyPosition()
@@ -1717,14 +1796,24 @@ function island:UpdateFade()
     self:StopCombatFade()
 
     -- Auto-hide: slide the island up off the top edge; a thin strip brings it back
-    local hy = (ns.db.mode == "Auto-hide" and not self.expanded) and 60 or 0
-    if hy ~= self.hiddenY then
-        self.hiddenY = hy
-        self:ApplyPosition()
+    local hy = (ns.db.mode == "Auto-hide" and not self.expanded) and (f:GetHeight() * (ns.PillOn() and 2 or 1) + ns.TopOffset() / self:CurrentScale()) or 0
+    if hy ~= self.hiddenTarget then
+        self.hiddenTarget = hy
+        if self.hideTween then ns.KillTween(self.hideTween); self.hideTween = nil end
+        if ns.PillOn() and ns.db.animations ~= "Off" then
+            self.hideTween = ns.Tween({
+                dur = 0.3, from = self.hiddenY or 0, to = hy, ease = ns.easeOutCubic,
+                set = function(y) self.hiddenY = y; self:ApplyPosition() end,
+                done = function() self.hideTween = nil end,
+            })
+        else
+            self.hiddenY = hy
+            self:ApplyPosition()
+        end
     end
 
     if ns.db.mode == "Auto-hide" and not self.expanded then
-        f:SetAlpha(0)
+        f:SetAlpha(ns.PillOn() and 1 or 0)
         if self.hoverStrip then self.hoverStrip:Show() end
         return
     end
@@ -1765,7 +1854,7 @@ end
 
 function island:ApplyPosition()
     local off = (ns.db.posX or 0) + (ns.db.posOffset or 0) + (self._shakeX or 0)
-    local offY = (ns.db.posY or 0) + (self.hiddenY or 0) + (self._dipY or 0) + (self._shakeY or 0)
+    local offY = -ns.TopOffset() / self:CurrentScale() + (self.hiddenY or 0) + (self._dipY or 0) + (self._shakeY or 0)
     f:ClearAllPoints()
     f:SetPoint("TOP", UIParent, "TOP", off, offY)
 end
@@ -1915,7 +2004,7 @@ f:SetScript("OnMouseDown", function(_, button)
         dragging = true
         dragStartX, dragStartY = GetCursorPosition()
         dragStartPosX = ns.db.posX or 0
-        dragStartPosY = ns.db.posY or 0
+        dragStartPosY = ns.db.posY or 12
     end
 end)
 
@@ -1972,8 +2061,15 @@ f:SetScript("OnUpdate", function(_, elapsed)
         -- free 2D placement: X to the right, Y up (the top anchor offset grows
         -- upward, and the cursor's Y grows upward too)
         ns.db.posX = dragStartPosX + (cx - dragStartX) / scale
-        ns.db.posY = dragStartPosY + (cy - dragStartY) / scale
+        ns.db.posY = math.max(0, math.min(60, dragStartPosY - (cy - dragStartY)))
         island:ApplyPosition()
+    end
+
+    local pulse = ns.levelUpUntil and GetTime() < ns.levelUpUntil
+    local pulseColor = pulse and ns.Theme().gold or nil
+    if pulseColor ~= island.pillPulseColor then
+        island.pillPulseColor = pulseColor
+        island:LayoutBorders()
     end
 
     -- rested / quest pulse

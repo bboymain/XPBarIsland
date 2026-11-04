@@ -2,6 +2,12 @@
 
 Every update to XPBar Island, in plain (and slightly caffeinated) English.
 
+## Unreleased: Floating Pill
+
+* Added Shape (Attached or Pill), a Pill theme using Default colors, and a live 0?60 px Top offset setting (12 px by default).
+* Pills have a complete rounded border, animated corners, and slide fully offscreen in Auto-hide. Announcements and effects follow the floating island.
+* Shape and offset save with profiles; Layout reset restores Attached and 12 px. Presets preserve both settings.
+
 ## 1.0.14: The "Stop Flickering, Start Hiding" Update
 
 Thanks to **Dukul** for spotting this one and reporting it.
