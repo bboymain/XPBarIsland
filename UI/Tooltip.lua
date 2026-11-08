@@ -79,7 +79,10 @@ function TT:Build(d)
         addRow(progress, "Bars to level up", bars .. " of 20")
         addRow(progress, "Remaining", ns.Comma(math.max(0, d.max - d.cur)))
         addRow(progress, "Rested", ns.Comma(ns.xp().rested or 0), ns.Colors.restTag)
-        addRow(progress, "After Turn-In", ns.Percent(math.min(1, (d.cur + (d.questTotal or 0)) / (d.max or 1)), 1))
+        if ns.db.showTurnInXP ~= false then
+            addRow(progress, "Turn-in", ns.Short(d.questTotal or 0, compact), ns.Colors.quest)
+            addRow(progress, "After Turn-In", ns.Percent(math.min(1, (d.cur + (d.questTotal or 0)) / (d.max or 1)), 1))
+        end
         sections[#sections + 1] = { title = "Progress", rows = progress }
 
         local pace = {}

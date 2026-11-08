@@ -347,6 +347,8 @@ local function buildBars(page)
     end
     page:addRow(W.Checkbox(page.content, "Show portrait", "Your character face next to the bar",
         function() return ns.db.portrait end, function(v) setAndRefresh("portrait", v); ns.island:ApplyPortrait() end))
+    page:addRow(W.Checkbox(page.content, "Show turn-in XP", "Green XP projection from completed quests",
+        function() return ns.db.showTurnInXP ~= false end, function(v) setAndRefresh("showTurnInXP", v) end))
     page:addRow(W.Checkbox(page.content, "Compact numbers", "Show 9.9K instead of 9,900",
         function() return ns.db.compact end, function(v) setAndRefresh("compact", v) end))
 end
@@ -1091,6 +1093,7 @@ local function buildQuick()
         qswitch(s, "autoSwitch", "Auto-switch bar", "Show a type briefly when it changes")
         qswitch(s, "repAtMax", "Reputation bar at max level", "Replace XP with your watched faction")
         qswitch(s, "portrait", "Show portrait", "Your character face next to the bar")
+        qswitch(s, "showTurnInXP", "Show turn-in XP", "Green XP projection from completed quests")
         qswitch(s, "compact", "Compact numbers", "Show 9.9K instead of 9,900")
     end)
 
@@ -1524,6 +1527,7 @@ local STUDIO_BUILD = {
         qswitch(s, "autoSwitch", "Auto-switch bar", "Show a type briefly when it changes")
         qswitch(s, "repAtMax", "Reputation bar at max level", "Replace XP with your watched faction")
         qswitch(s, "portrait", "Show portrait", "Your character face next to the bar")
+        qswitch(s, "showTurnInXP", "Show turn-in XP", "Green XP projection from completed quests")
         qswitch(s, "compact", "Compact numbers", "Show 9.9K instead of 9,900")
     end,
     ["Motion"] = function(s)

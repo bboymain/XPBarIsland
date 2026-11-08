@@ -84,12 +84,34 @@ function ns.NewBar(parent, height)
     rested:SetVertexColor(0.10, 0.44, 0.88, 0.75)
     rested:Hide()
 
-    local ghost = f:CreateTexture(nil, "ARTWORK", nil, 2)
-    ghost:SetPoint("TOPLEFT", fill, "TOPRIGHT", 0, 1)
-    ghost:SetPoint("BOTTOMLEFT", fill, "BOTTOMRIGHT", 0, -1)
-    ghost:SetWidth(0)
-    ghost:SetTexture(ns.Media.stripe)
-    ghost:Hide()
+    local turnInBar = f:CreateTexture(nil, "ARTWORK", nil, 2)
+    turnInBar:SetPoint("TOPLEFT", fill, "TOPRIGHT", 0, 1)
+    turnInBar:SetPoint("BOTTOMLEFT", fill, "BOTTOMRIGHT", 0, -1)
+    turnInBar:SetTexture(ns.Media.stripe or ns.Media.white)
+    turnInBar:SetVertexColor(0.25, 0.86, 0.43, 0.85)
+    turnInBar:Hide()
+
+    -- Textures cannot receive mouse input; this frame follows only the green segment.
+    local turnInHover = CreateFrame("Frame", nil, f)
+    turnInHover:SetAllPoints(turnInBar)
+    turnInHover:EnableMouse(true)
+    if turnInHover.SetPropagateMouseClicks then
+        turnInHover:SetPropagateMouseClicks(true)
+    else
+        for _, script in ipairs({ "OnMouseDown", "OnMouseUp" }) do
+            turnInHover:SetScript(script, function(_, button)
+                local frame = ns.island and ns.island.frame
+                local handler = frame and frame:GetScript(script)
+                if handler then handler(frame, button) end
+            end)
+        end
+    end
+    turnInHover:Hide()
+    local turnInIcon = turnInHover:CreateTexture(nil, "OVERLAY")
+    turnInIcon:SetTexture("Interface\\GossipFrame\\ActiveQuestIcon")
+    turnInIcon:SetSize(12, 12)
+    turnInIcon:SetPoint("CENTER", turnInBar, "CENTER", 0, 0)
+    turnInIcon:Hide()
 
     -- fresh XP flash (pale gold, horizontal alpha 0.15 -> 0.95)
     local flash = f:CreateTexture(nil, "ARTWORK", nil, 3)
@@ -124,6 +146,7 @@ function ns.NewBar(parent, height)
 
     -- idle shine: clipped child frame over the fill
     local shineFrame = CreateFrame("Frame", nil, f)
+    shineFrame:EnableMouse(false)
     shineFrame:SetPoint("TOPLEFT", f, "TOPLEFT", 1, -1)
     shineFrame:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 1, 1)
     shineFrame:SetWidth(0)
@@ -166,17 +189,30 @@ function ns.NewBar(parent, height)
     local self = setmetatable({
         frame = f, height = height,
         outer = outer, black = black, inner = inner,
-        fill = fill, fillLower = fillLower, rested = rested, ghost = ghost, gloss = gloss,
+        fill = fill, fillLower = fillLower, rested = rested, turnInBar = turnInBar, gloss = gloss,
+        turnInHover = turnInHover, turnInIcon = turnInIcon,
         flash = flash, glint = glint, halo = { haloL, haloR },
         rimTop = rimTop, shadeBottom = shadeBottom,
         shineFrame = shineFrame, shine = shine,
         cometHead = cometHead, cometTrail = cometTrail, cometSparks = cometSparks,
         cometT = 0, cometOn = false, cometFlow = false,
         ticks = {}, markers = {},
-        pct = 0, targetPct = nil, restedPct = 0, ghostPct = 0,
+        pct = 0, targetPct = nil, restedPct = 0, turnInPct = 0,
         showMilestone = false, party = {}, expanded = false,
         animating = false, counting = false, flashOn = false,
     }, Bar)
+
+    turnInHover:SetScript("OnEnter", function()
+        self.turnInHovered = true
+        if ns.Tooltip then ns.Tooltip:Hide() end
+        self:ShowTurnInTooltip()
+    end)
+    local function leaveTurnIn()
+        self.turnInHovered = false
+        if GameTooltip and GameTooltip:IsOwned(turnInHover) then GameTooltip:Hide() end
+    end
+    turnInHover:SetScript("OnLeave", leaveTurnIn)
+    turnInHover:SetScript("OnHide", leaveTurnIn)
 
     -- engraved groove marks: dark violet left edge + faint white right edge
     for k = 1, 19 do
@@ -292,6 +328,53 @@ function Bar:ShowThinText(show)
     else self.textLeft:Hide(); self.textRight:Hide() end
 end
 
+function Bar:LayoutTurnInIcon()
+    local show = self.turnInBar:IsShown() and self.turnInBar:GetWidth() >= 12
+    local island = ns.island
+    if show and island and island.bar == self and island.thin then
+        local left, right = self.turnInIcon:GetLeft(), self.turnInIcon:GetRight()
+        show = left ~= nil and right ~= nil
+        if show then
+            for _, name in ipairs({ "thinNameFS", "thinPctFS", "thinBarsFS", "thinGainFS",
+                "thinStreakFS", "thinRestedFS", "thinRateFS", "thinEtaFS", "thinTurnInFS" }) do
+                local text = island[name]
+                if text and text:IsShown() and text:GetStringWidth() > 0 then
+                    local textLeft, textRight = text:GetLeft(), text:GetRight()
+                    if textLeft and textRight and left < textRight + 2 and right > textLeft - 2 then
+                        show = false
+                        break
+                    end
+                end
+            end
+        end
+    end
+    self.turnInIcon:SetShown(show)
+end
+
+function Bar:ShowTurnInTooltip()
+    local d = self.data
+    if not GameTooltip or not d or d.key ~= "xp" or (d.questTotal or 0) <= 0 then return end
+    local compact = ns.db and ns.db.compact
+    GameTooltip:SetOwner(self.turnInHover, "ANCHOR_TOP")
+    GameTooltip:SetText("Quest turn-in")
+    GameTooltip:AddLine("+" .. ns.Short(d.questTotal, compact) .. " XP from "
+        .. (d.questCount or 0) .. " completed quests", 0.25, 0.86, 0.43)
+    if d.turnInLevel then
+        GameTooltip:AddLine("Turning these in will level you up", 0.25, 0.86, 0.43)
+    end
+    GameTooltip:Show()
+    for i, quest in ipairs(d.questList or {}) do
+        if GameTooltip:GetHeight() + 16 > UIParent:GetHeight() * 0.65 then
+            GameTooltip:AddLine("+" .. (#d.questList - i + 1) .. " more quests", 0.7, 0.7, 0.7)
+            break
+        end
+        GameTooltip:AddDoubleLine(quest.title or "Quest", ns.Short(quest.xp or 0, compact) .. " XP",
+            1, 1, 1, 0.25, 0.86, 0.43)
+        GameTooltip:Show()
+    end
+    GameTooltip:Show()
+end
+
 local function applyVerticalGradient(tex, c1, c2)
     tex:SetTexture(ns.Media.statusBar)
     local done = false
@@ -401,7 +484,20 @@ function Bar:SetData(d)
     if not d then self:Layout(); return end
 
     self.restedPct = d.restedPct or 0
-    self.ghostPct = d.ghostPct or 0
+    local turnInPct = d.turnInPct or 0
+    if self.turnInTarget ~= turnInPct or (animMode() == "Off" and self.turnInTween) then
+        if self.turnInTween then ns.KillTween(self.turnInTween); self.turnInTween = nil end
+        if self.turnInTarget ~= nil and animMode() ~= "Off" and d.key == "xp"
+            and (ns.db == nil or ns.db.showTurnInXP ~= false) and self.lastLevel == d.level then
+            self.turnInTween = ns.Tween({
+                dur = GAIN_DUR, from = self.turnInPct or 0, to = turnInPct, ease = ns.easeOutCubic,
+                set = function(v) self.turnInPct = v; self:LayoutFill() end,
+            })
+        else
+            self.turnInPct = turnInPct
+        end
+        self.turnInTarget = turnInPct
+    end
     self.showMilestone = (d.key == "xp") and not (ns.db and ns.db.v1)
     local th = ns.Theme()
     if d.key == "xp" and ns.db and ns.db.barColor then
@@ -447,6 +543,7 @@ function Bar:SetData(d)
     self.lastLevel = d.level
     self:Layout()
     self:UpdateEffects()
+    if self.turnInHovered then self:ShowTurnInTooltip() end
 end
 
 -- ---------------------------------------------------------------------------
@@ -483,7 +580,7 @@ function Bar:LayoutFill()
     local innerW = math.max(0, w - 2)
     local h = self.height
     local pct = ns.clamp(self.pct or 0, 0, 1)
-    local fw = ns.round(innerW * pct)
+    local fw = math.min(innerW, ns.round(innerW * pct))
     self.fill:SetWidth(fw)
     -- A zero width can make a texture render at its native size, so hide the
     -- fill entirely when there is nothing to draw (e.g. 0.1% in a small layout)
@@ -533,26 +630,23 @@ function Bar:LayoutFill()
         self.streakFill:SetWidth(fw)
     end
 
-    -- rested / ghost span the full bar height, at the fill's right edge
-    if self.restedPct and self.restedPct > 0 then
-        self.rested:Show()
-        self.rested:ClearAllPoints()
-        self.rested:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 1 + fw, -1)
-        self.rested:SetPoint("BOTTOMLEFT", self.frame, "BOTTOMLEFT", 1 + fw, 1)
-        self.rested:SetWidth(ns.round(innerW * ns.clamp(self.restedPct, 0, 1)))
-    else
-        self.rested:Hide()
+    -- Recompute against the animated fill so both projections stay inside the track.
+    local turnW = math.min(innerW - fw, innerW * math.max(0, self.turnInPct or 0))
+    local restW = math.min(innerW - fw - turnW, innerW * math.max(0, self.restedPct or 0))
+    for _, segment in ipairs({ { self.turnInBar, fw, turnW }, { self.rested, fw + turnW, restW } }) do
+        local tex, left, width = segment[1], segment[2], segment[3]
+        if width > 0 then
+            tex:ClearAllPoints()
+            tex:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 1 + left, -1)
+            tex:SetPoint("BOTTOMLEFT", self.frame, "BOTTOMLEFT", 1 + left, 1)
+            tex:SetWidth(width)
+            tex:Show()
+        else
+            tex:Hide()
+        end
     end
-
-    if self.ghostPct and self.ghostPct > 0 then
-        self.ghost:Show()
-        self.ghost:ClearAllPoints()
-        self.ghost:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 1 + fw, 0)
-        self.ghost:SetPoint("BOTTOMLEFT", self.frame, "BOTTOMLEFT", 1 + fw, 0)
-        self.ghost:SetWidth(math.max(1, ns.round(innerW * ns.clamp(self.ghostPct, 0, 1))))
-    else
-        self.ghost:Hide()
-    end
+    self.turnInHover:SetShown(turnW > 0)
+    self:LayoutTurnInIcon()
 
     if self.flashOn then
         local left = ns.round(innerW * ns.clamp(self.flashFrom or 0, 0, 1))
@@ -620,14 +714,11 @@ function Bar:LayoutMarkers(innerW)
     end
 end
 
--- Rested / quest pulse, called every frame by the island's OnUpdate.
+-- Rested pulse, called every frame by the island's OnUpdate.
 function Bar:Pulse(alpha)
     if self.rested:IsShown() then
         local rc = self._restedColor or { 0.10, 0.44, 0.88 }
         self.rested:SetVertexColor(rc[1], rc[2], rc[3], alpha or 0.75)
-    end
-    if self.ghost:IsShown() then
-        self.ghost:SetAlpha(alpha or 0.7)
     end
 
     local anim = animMode()

@@ -2,6 +2,14 @@
 
 Every update to XPBar Island, in plain (and slightly caffeinated) English.
 
+## 1.0.16: The "Quest Payday" Update
+
+* **See your next payday:** Finished quests add a green striped XP preview. Enough for a ding? Look for **LEVEL**!
+* **Blue waits its turn:** Rested XP now starts after your quest XP, with no overlap.
+* **What's that little ?** Hover the green section to see your quest rewards. The icon hides when it would cover text.
+* **Minimal stays minimal:** Hovering no longer brings back the background.
+* **Your bar, your rules:** Toggle **Show turn-in XP** under Bars. It's on by default.
+
 ## 1.0.15: Floating Pill
 
 * Added Shape (Attached or Pill), a Pill theme using Default colors, and a live 0?60 px Top offset setting (12 px by default).

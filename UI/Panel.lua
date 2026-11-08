@@ -972,7 +972,7 @@ local function renderStatGrid(d, innerW, y, g2)
         cell:SetSize(colW, 30)
         cell:ClearAllPoints()
         cell:SetPoint("TOPLEFT", grid, "TOPLEFT", col * (colW + colGap), -(row * (30 + rowGap)))
-        cell.isTurnIn = (d.key == "xp" and i == turnInIndex and ns.db.questList and not ns.db.v1)
+        cell.isTurnIn = (d.key == "xp" and i == turnInIndex and ns.db.showTurnInXP ~= false and ns.db.questList and not ns.db.v1)
         cell:EnableMouse(cell.isTurnIn and true or false)
         local s = d.stats and d.stats[i]
         if s then
@@ -1293,7 +1293,7 @@ function panel:Layout(d)
     -- (and latch open over) the second-row cells
     quest:ClearAllPoints()
     quest:SetPoint("TOPLEFT", grid, "BOTTOMLEFT", 0, -4)
-    if d.key ~= "xp" or not ns.db.questList or ns.db.v1 then
+    if d.key ~= "xp" or ns.db.showTurnInXP == false or not ns.db.questList or ns.db.v1 then
         quest:Hide()
         ns.questPreview = nil
     end

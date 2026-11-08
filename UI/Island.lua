@@ -201,6 +201,7 @@ end
 
 -- --- centre column --------------------------------------------------------
 local col = CreateFrame("Frame", nil, f)
+col:EnableMouse(false)
 col:SetHeight(31)
 island.col = col
 
@@ -239,7 +240,7 @@ island.qpFS = col:CreateFontString(nil, "OVERLAY")
 ns.StyleText(island.qpFS, 12, "bold")
 island.qpFS:SetPoint("RIGHT", island.barsFS, "LEFT", -8, 0)
 island.qpFS:SetJustifyH("RIGHT")
-island.qpFS:SetTextColor(1, 0.82, 0, 1)
+island.qpFS:SetTextColor(0.25, 0.86, 0.43, 1)
 island.qpFS:SetAlpha(0)
 
 island.bar = ns.NewBar(col, 12)
@@ -282,6 +283,7 @@ island.thinStreakFS = thinFS("LEFT", 1, 0.82, 0)
 island.thinRestedFS = thinFS("LEFT", 0.549, 0.769, 1.0)
 island.thinRateFS = thinFS("LEFT", 1, 0.902, 0.502)
 island.thinEtaFS = thinFS("LEFT", 0.902, 0.902, 0.902)
+island.thinTurnInFS = thinFS("LEFT", 0.25, 0.86, 0.43)
 
 function island:LayoutThinChipBorder(chip)
     local b = chip.border
@@ -347,6 +349,9 @@ function island:UpdateThin(pct)
         -- right group, right to left: percent, bars, eta, rate, streak, gain
         local C_WHITE, C_LIGHT, C_WARM = { 1, 1, 1 }, { 0.902, 0.902, 0.902 }, { 1, 0.902, 0.502 }
         local items = {}
+        items[#items + 1] = { key = "turnIn", fs = self.thinTurnInFS, col = ns.Colors.quest,
+            text = (d and d.questTotal and d.questTotal > 0) and
+                ("+" .. ns.Short(d.questTotal, ns.db.compact) .. " turn-in" .. (d.turnInLevel and " LEVEL" or "")) or "" }
         if ns.db.mPct ~= false then
             items[#items + 1] = { key = "pct", fs = self.thinPctFS, text = ns.Percent(p, 0), col = C_WHITE }
         end
@@ -402,6 +407,7 @@ function island:UpdateThin(pct)
                 it.fs:Hide()
             end
         end
+        self.bar:LayoutTurnInIcon()
     end)
     if not ok then ns.ReportError("island:UpdateThin", err) end
 end
@@ -1049,7 +1055,7 @@ end
 -- island is not in thin mode, so they cannot leak into the Full layout.
 function island:HideThinPieces()
     for _, name in ipairs({ "thinNameFS", "thinPctFS", "thinBarsFS", "thinGainFS",
-                            "thinStreakFS", "thinRestedFS", "thinRateFS", "thinEtaFS" }) do
+                            "thinStreakFS", "thinRestedFS", "thinRateFS", "thinEtaFS", "thinTurnInFS" }) do
         local fs = self[name]
         if fs then fs:Hide() end
     end
@@ -1232,9 +1238,8 @@ function island:LayoutBorders()
     if not self.tween then self.pillRadius = self:PillRadius(self.expanded) end
     self:ApplyRadius(r, h)
 
-    -- Minimal (thin) bar: no island background while collapsed and not hovered.
-    -- The XP bar keeps its own backing; hovering (or expanding) restores it.
-    local showBg = (not self.thin) or self.mouseOver
+    -- Minimal keeps only the XP bar backing, including while hovered.
+    local showBg = not self.thin
     if self.bg then
         if showBg then self.bg:Show() else self.bg:Hide() end
     end
@@ -1279,7 +1284,7 @@ function island:ApplyTheme()
     for i = 1, 4 do self.badgeRing[i]:SetVertexColor(ring[1], ring[2], ring[3], 1) end
     self.miniRing:SetVertexColor(ring[1], ring[2], ring[3], 1)
     local gold = ns.HexA(th.gold)
-    for _, t in ipairs({ self.nameFS, self.badgeText, self.miniText, self.rateFS, self.qpFS }) do
+    for _, t in ipairs({ self.nameFS, self.badgeText, self.miniText, self.rateFS }) do
         t:SetTextColor(gold[1], gold[2], gold[3], 1)
     end
     self.pctFS:SetTextColor(1, 1, 1, 1)
@@ -1431,14 +1436,6 @@ function island:UpdateNow(d)
         self.miniText:SetText(tostring(d.badge or ""))
     end
 
-    -- a hovered completed quest previews only that quest's ghost segment
-    local qp = ns.questPreview
-    if d.key == "xp" and qp then
-        local remaining = math.max(0, (d.max or 1) - (d.cur or 0))
-        d.questTotal = qp.xp or 0
-        d.ghostPct = math.min(qp.xp or 0, remaining) / (d.max or 1)
-    end
-
     local counting = (d.key == "xp" and self.bar.animating)
     if d.key == "xp" then
         self.nameFS:SetText(d.name or "Experience")
@@ -1461,7 +1458,7 @@ function island:UpdateNow(d)
     self.etaFS:SetText((d.eta and d.eta ~= "--") and d.eta or "")
     self:UpdateRightSize()
     self:SetRightBlock((ns.db.showRate ~= false) and rightContent(d))
-    self.qpFS:SetText((d.questTotal and d.questTotal > 0) and ("+" .. ns.Comma(d.questTotal) .. " XP") or "")
+    self.qpFS:SetText((d.questTotal and d.questTotal > 0) and ("+" .. ns.Short(d.questTotal, ns.db.compact) .. " turn-in" .. (d.turnInLevel and " LEVEL" or "")) or "")
     self.qpFS:SetAlpha((d.key == "xp" and d.questTotal and d.questTotal > 0) and 1 or 0)
     self.restTag:SetAlpha((ns.db.showRested ~= false and d.key == "xp" and d.resting) and 1 or 0)
     if d.key == "xp" then self:UpdateBarsText(d.pct) end
@@ -1977,7 +1974,7 @@ function island:SetHover(over)
     if over then
         if ns.db.hoverExpand or ns.db.mode == "Always open" then
             self:SetOpen(true, "hover")
-        elseif ns.Tooltip then
+        elseif ns.Tooltip and not self.bar.turnInHovered then
             ns.Tooltip:Show(self.data)
         end
     else
@@ -1988,8 +1985,6 @@ function island:SetHover(over)
         if ns.Tooltip then ns.Tooltip:Hide() end
     end
     self:UpdateFade()
-    -- thin (Classic) bar toggles its island background with hover
-    if ns.db.mode == "Classic" then self:LayoutBorders() end
 end
 
 local canPoll = type(f.IsMouseOver) == "function"

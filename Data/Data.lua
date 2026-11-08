@@ -138,7 +138,8 @@ local function buildXP()
     local v1 = ns.db.v1
     local remaining = math.max(0, max - cur)
     local restedPct = math.min(x.rested or 0, remaining) / max
-    local ghostPct = v1 and 0 or math.min(q.total or 0, remaining) / max
+    local turnInXP = ns.db.showTurnInXP ~= false and (q.total or 0) or 0
+    local turnInPct = math.min(turnInXP, remaining) / max
     local compact = ns.db.compact
 
     local rate = x.rate
@@ -176,7 +177,7 @@ local function buildXP()
         end
     end
 
-    local turnIn = { k = "Turn-in", v = ns.Comma(q.total or 0), c = ns.Colors.quest }
+    local turnIn = { k = "Turn-in", v = ns.db.showTurnInXP ~= false and ns.Short(turnInXP, compact) or "--", c = ns.Colors.quest }
     if v1 then turnIn = { k = "Quests in Log", v = tostring(q.inLog or 0) } end
 
     local played = "--"
@@ -201,6 +202,8 @@ local function buildXP()
         { k = "Kills to level", v = kills and ("~" .. kills) or "--" },
     }
 
+    if not v1 and ns.db.showTurnInXP == false then table.remove(stats, 3) end
+
     -- the milestone/spell preview is a nice-to-have: never let it break the
     -- core XP stat grid if a client API is missing or misbehaves
     local md = { text = "", spells = {} }
@@ -212,11 +215,11 @@ local function buildXP()
         key = "xp", label = LABEL.xp, name = UnitName("player") or "Experience",
         badge = tostring(x.level), level = x.level,
         cur = cur, max = max, pct = x.pct,
-        fill = ns.Colors.xp, restedPct = restedPct, ghostPct = ghostPct,
+        fill = ns.Colors.xp, restedPct = restedPct, turnInPct = turnInPct,
         resting = x.resting,
         rate = rateText, rateValue = rateValue, eta = eta, timeToLevel = timeToLevel,
         killXP = x.killXP,
-        questTotal = v1 and 0 or (q.total or 0), questList = q.list, questCount = q.count,
+        questTotal = turnInXP, turnInLevel = turnInXP > 0 and cur + turnInXP >= max, questList = q.list, questCount = q.count,
         stats = stats, milestone = md.text, milestoneLevel = md.level,
         nextSpellLevel = md.level, nextReward = md.reward, spells = md.spells,
         quest = true,
