@@ -340,14 +340,15 @@ local function buildPet()
         }
     end
     local hasXP = p.hasXP
+    local hasHealth = p.hasHealth
     local session = ns.petSession.gained()
     local toFull = math.max(0, (p.healthMax or 0) - (p.health or 0))
     local stats = {
-        { k = hasXP and "Current" or "Health", v = ns.Comma(p.cur) },
-        { k = hasXP and "Needed" or "Health max", v = ns.Comma(p.max) },
-        { k = "Remaining", v = hasXP and ns.Comma(math.max(0, p.max - p.cur)) or ns.Comma(toFull) },
+        { k = hasXP and "Current" or "Health", v = (hasXP or hasHealth) and ns.Comma(p.cur) or "--" },
+        { k = hasXP and "Needed" or "Health max", v = (hasXP or hasHealth) and ns.Comma(p.max) or "--" },
+        { k = "Remaining", v = hasXP and ns.Comma(math.max(0, p.max - p.cur)) or (hasHealth and ns.Comma(toFull) or "--") },
         { k = "Pet level", v = tostring(p.level) },
-        { k = "Health", v = ns.Comma(p.health or 0) .. " / " .. ns.Comma(p.healthMax or 0) },
+        { k = "Health", v = hasHealth and (ns.Comma(p.health) .. " / " .. ns.Comma(p.healthMax)) or "--" },
         { k = "Happiness", v = p.happiness or "--" },
         { k = "Session", v = "+" .. ns.Comma(session) },
         { k = "Updated", v = ns.Ago(ns.lastUpdate) },
@@ -358,7 +359,7 @@ local function buildPet()
         badge = p.badge, cur = p.cur, max = p.max, pct = p.pct, fill = ns.Colors.pet,
         stats = stats, milestone = hasXP and "Next pet level" or "Keep your pet healthy",
         shortLine = hasXP and (ns.round(p.pct * 100) .. "%")
-            or (ns.Comma(p.health or 0) .. " / " .. ns.Comma(p.healthMax or 0)),
+            or (hasHealth and (ns.Comma(p.health) .. " / " .. ns.Comma(p.healthMax)) or "Pet health unavailable"),
     }
 end
 
