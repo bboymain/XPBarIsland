@@ -2,6 +2,15 @@
 
 Every update to XPBar Island, in plain (and slightly caffeinated) English.
 
+## 1.0.17: The "Trainer Tab" Update
+
+* **Budget before you travel:** Upcoming spells now show training prices with coin icons, plus a Total for the whole level.
+* **The whole spell list:** Spells wrap onto extra rows, so nothing hides behind a +N chip.
+* **All nine classes:** Bundled Forever base prices work before a trainer visit. Visiting your class trainer updates them with your actual prices.
+* **Can you afford it?** Hover a spell for its rank, learning level, price and a green or red money check. Missing prices stay marked with ?.
+* **Your bar, your rules:** Show next abilities and Show training costs are both on by default in Bars settings.
+* **Happy pets, happy bars:** Pet XP keeps working when the client hides pet health values.
+
 ## 1.0.16: The "Quest Payday" Update
 
 * **See your next payday:** Finished quests add a green striped XP preview. Enough for a ding? Look for **LEVEL**!

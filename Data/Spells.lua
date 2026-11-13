@@ -304,13 +304,13 @@ local cache = {}
 local function spellInfo(id)
     local g = _G.GetSpellInfo
     if type(g) == "function" then
-        local ok, name, _, icon = pcall(g, id)
-        if ok and name then return name, icon end
+        local ok, name, rank, icon = pcall(g, id)
+        if ok and name then return name, icon, rank end
     end
     local cs = _G.C_Spell
     if cs and type(cs.GetSpellInfo) == "function" then
         local ok, info = pcall(cs.GetSpellInfo, id)
-        if ok and type(info) == "table" then return info.name, info.iconID or info.originalIconID end
+        if ok and type(info) == "table" then return info.name, info.iconID or info.originalIconID, info.subName end
     end
     return nil
 end
@@ -344,9 +344,9 @@ function ns.SpellsForLevel(level)
     local out = {}
     for i = 1, #ids do
         local id = ids[i]
-        local name, icon = spellInfo(id)
+        local name, icon, rank = spellInfo(id)
         if name and not isKnown(id) then
-            out[#out + 1] = { id = id, name = name, icon = icon }
+            out[#out + 1] = { id = id, name = name, icon = icon, rank = rank, level = level }
         end
     end
     cache[level] = out

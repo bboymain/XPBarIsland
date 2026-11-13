@@ -558,8 +558,40 @@ spellTag.text:SetPoint("CENTER", spellTag, "CENTER", 0, 0)
 
 local spellReward = text(spellStrip, 11, "#8F8777", "RIGHT", nil, "medium")
 
+local spellTotal = CreateFrame("Frame", nil, spellStrip)
+spellTotal:SetHeight(20)
+spellTotal.bg = spellTotal:CreateTexture(nil, "BACKGROUND")
+spellTotal.bg:SetAllPoints()
+ns.Paint(spellTotal.bg, 0.16, 0.12, 0.04, 1)
+spellTotal.label = text(spellTotal, 11, "#FFD100", "CENTER")
+spellTotal.label:SetPoint("CENTER")
+spellTotal:EnableMouse(true)
+spellTotal:SetScript("OnEnter", function(self)
+    if not _G.GameTooltip then return end
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:SetText(self.label:GetText())
+    if self.unknown then GameTooltip:AddLine("Visit your class trainer to update prices", 1, 1, 1, true) end
+    GameTooltip:Show()
+end)
+spellTotal:SetScript("OnLeave", function() if _G.GameTooltip then GameTooltip:Hide() end end)
+spellTotal:Hide()
+
+local function addTrainingTooltip(spell)
+    if spell.rank and spell.rank ~= "" then GameTooltip:AddLine(spell.rank, 0.78, 0.78, 0.81) end
+    GameTooltip:AddLine("Learn at level " .. tostring(spell.level), 1, 1, 1)
+    if ns.db.showTrainingCosts == false then return end
+    local cost, source = ns.TrainingCost(spell)
+    if source == "bundled" then GameTooltip:AddLine("Base training price; trainer discounts may apply", 0.78, 0.78, 0.81, true) end
+    GameTooltip:AddLine("Cost: " .. ns.TrainingMoney(cost), 0.78, 0.78, 0.81)
+    if cost ~= nil and GetMoney then
+        local afford = GetMoney() >= cost
+        GameTooltip:AddLine(afford and "You can afford this" or "Not enough money", afford and 0.12 or 1, afford and 1 or 0.12, 0.12)
+    elseif cost == nil then
+        GameTooltip:AddLine("Visit your class trainer to update prices", 1, 1, 1, true)
+    end
+end
+
 local spellChips = {}
-local spellPlus
 
 local function makeSpellChip()
     local c = CreateFrame("Frame", nil, spellStrip)
@@ -577,6 +609,8 @@ local function makeSpellChip()
     c.icon:SetPoint("TOPLEFT", c, "TOPLEFT", 2, -2)
     c.label = text(c, 11, "#ECE6D8", "LEFT", nil, "medium")
     c.label:SetPoint("LEFT", c, "LEFT", 30, 0)
+    c.cost = text(c, 10, "#C7C7CF", "LEFT", nil, "medium")
+    c.cost:SetPoint("LEFT", c.label, "RIGHT", 5, 0)
     c:EnableMouse(true)
     c:SetScript("OnEnter", function(self)
         if not (self.spell and _G.GameTooltip) then return end
@@ -584,32 +618,11 @@ local function makeSpellChip()
         local ok = false
         if GameTooltip.SetSpellByID then ok = pcall(GameTooltip.SetSpellByID, GameTooltip, self.spell.id) end
         if not ok then GameTooltip:SetText(self.spell.name or "Spell") end
+        addTrainingTooltip(self.spell)
         GameTooltip:Show()
     end)
     c:SetScript("OnLeave", function() if _G.GameTooltip then GameTooltip:Hide() end end)
     spellChips[#spellChips + 1] = c
-    return c
-end
-
-local function makePlusChip()
-    local c = CreateFrame("Frame", nil, spellStrip)
-    c:SetHeight(20)
-    c.bd = c:CreateTexture(nil, "BACKGROUND", nil, 1)
-    c.bd:SetPoint("TOPLEFT", c, "TOPLEFT", -1, 1)
-    c.bd:SetPoint("BOTTOMRIGHT", c, "BOTTOMRIGHT", 1, -1)
-    ns.Paint(c.bd, 0.29, 0.23, 0.11, 1)
-    c.label = text(c, 11, "#FFD100", "CENTER")
-    c.label:SetPoint("CENTER", c, "CENTER", 0, 0)
-    c:EnableMouse(true)
-    c:SetScript("OnEnter", function(self)
-        if not (_G.GameTooltip and self.list) then return end
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText("More spells at this level", 1, 0.82, 0, 1, true)
-        for _, s in ipairs(self.list) do GameTooltip:AddLine(s.name or "?", 1, 1, 1) end
-        GameTooltip:Show()
-    end)
-    c:SetScript("OnLeave", function() if _G.GameTooltip then GameTooltip:Hide() end end)
-    spellPlus = c
     return c
 end
 
@@ -865,18 +878,18 @@ local function partySignature(members)
     return table.concat(parts, "|")
 end
 
--- Draws one row of next-level spell chips, with a +N chip for overflow.
+-- Wrap every next-level spell onto as many rows as needed.
 -- Returns the height used (0 when there is nothing to show).
 function panel:LayoutSpells(d, innerW, top)
-    -- Use the final open width so the visible spells and +N count stay
+    -- Use the final open width so wrapped rows stay
     -- stable while the island expands or its spring animation overshoots.
     innerW = ns.island:TargetWidth(true) - PAD * 2
     local spells = (d and d.spells) or {}
     local lvl = d and d.nextSpellLevel
-    if not lvl or #spells == 0 then
+    if ns.db.showNextAbilities == false or not lvl or #spells == 0 then
+        spellTotal:Hide()
         spellStrip:Hide()
         for _, c in ipairs(spellChips) do c:Hide() end
-        if spellPlus then spellPlus:Hide() end
         return 0
     end
 
@@ -891,59 +904,58 @@ function panel:LayoutSpells(d, innerW, top)
     spellReward:SetText(reward)
     local rewardW = (reward ~= "") and ((spellReward:GetStringWidth() or 0) + 10) or 0
 
-    local avail = innerW - tagW - 10 - 4
-    local plusW = 44
-    local x, shown = 0, 0
-    local overflow = false
-    for i = 1, #spells do
-        local s = spells[i]
+    local showCosts = ns.db.showTrainingCosts ~= false
+    local totalW = 0
+    if showCosts then
+        local total, unknown = ns.TrainingTotal(spells)
+        spellTotal.label:SetText("Total " .. total)
+        spellTotal.unknown = unknown
+        totalW = spellTotal.label:GetStringWidth() + 16
+        spellTotal:SetWidth(totalW)
+    else
+        spellTotal:Hide()
+    end
+    local startX = tagW + 10
+    local avail = innerW - startX - 4
+    local x, y, rowH = 0, 0, 26
+    for i, s in ipairs(spells) do
         local c = spellChips[i] or makeSpellChip()
         c.icon:SetTexture(s.icon)
+        c.label:SetWidth(0)
         c.label:SetText(s.name or "?")
-        local w = 30 + (c.label:GetStringWidth() or 40) + 8
-        if x + w > avail then overflow = true; break end
-        c:SetWidth(w)
+        c.cost:SetText(showCosts and ns.TrainingMoney(ns.TrainingCost(s)) or "")
+        c.cost:SetShown(showCosts)
+        local costW = showCosts and (c.cost:GetStringWidth() + 5) or 0
+        -- Long localized names wrap inside their chip instead of being cut off.
+        local labelW = math.min(c.label:GetStringWidth(), math.max(1, avail - 38 - costW))
+        c.label:SetWidth(labelW)
+        c.label:SetWordWrap(true)
+        c.label:SetNonSpaceWrap(true)
+        local w = 38 + labelW + costW
+        local h = math.max(26, c.label:GetStringHeight() + 4)
+        if x > 0 and x + w > avail then x, y, rowH = 0, y + rowH + 6, 26 end
+        c:SetSize(w, h)
         c.spell = s
         c:ClearAllPoints()
-        c:SetPoint("TOPLEFT", spellStrip, "TOPLEFT", tagW + 10 + x, 0)
+        c:SetPoint("TOPLEFT", spellStrip, "TOPLEFT", startX + x, -y)
         c:Show()
+        rowH = math.max(rowH, h)
         x = x + w + 6
-        shown = i
     end
-    -- If spells overflow, move trailing chips into the tooltip until the
-    -- +N badge and its gap also fit inside the row.
-    if overflow then
-        while shown > 0 and x + 2 + plusW > avail do
-            x = x - spellChips[shown]:GetWidth() - 6
-            shown = shown - 1
-        end
-    end
-    for i = shown + 1, #spellChips do spellChips[i]:Hide() end
+    for i = #spells + 1, #spellChips do spellChips[i]:Hide() end
 
-    local endX = tagW + 10 + x
-    local rest = #spells - shown
-    if overflow and rest > 0 then
-        local p = spellPlus or makePlusChip()
-        p.label:SetText("+" .. rest)
-        p:SetWidth(plusW)
-
-        -- List only hidden spells so the tooltip matches +N without repeating visible chips.
-        p.list = {}
-        for i = shown + 1, #spells do
-            p.list[#p.list + 1] = spells[i]
-        end
-        p:ClearAllPoints()
-        p:SetPoint("LEFT", spellStrip, "LEFT", endX + 2, 0)
-        p:Show()
-        endX = endX + plusW + 8
-    elseif spellPlus then
-        spellPlus:Hide()
+    if showCosts then
+        if x > 0 and x + totalW > avail then x, y, rowH = 0, y + rowH + 6, 26 end
+        spellTotal:ClearAllPoints()
+        spellTotal:SetPoint("TOPLEFT", spellStrip, "TOPLEFT", startX + x, -y - 3)
+        spellTotal:Show()
+        x = x + totalW + 6
     end
 
-    -- the next big reward sits after the last chip, only if there is room
-    if reward ~= "" and endX + rewardW <= innerW then
+    -- The optional milestone reward shares the final row when there is room.
+    if reward ~= "" and startX + x + rewardW <= innerW then
         spellReward:ClearAllPoints()
-        spellReward:SetPoint("LEFT", spellStrip, "LEFT", endX + 6, 0)
+        spellReward:SetPoint("TOPLEFT", spellStrip, "TOPLEFT", startX + x, -y - 7)
         spellReward:Show()
     else
         spellReward:Hide()
@@ -952,9 +964,10 @@ function panel:LayoutSpells(d, innerW, top)
     spellStrip:ClearAllPoints()
     spellStrip:SetPoint("TOPLEFT", f, "TOPLEFT", PAD, -top)
     spellStrip:SetPoint("TOPRIGHT", f, "TOPRIGHT", -PAD, -top)
-    spellStrip:SetHeight(28)
+    local height = y + rowH + 2
+    spellStrip:SetHeight(height)
     spellStrip:Show()
-    return 28
+    return height
 end
 
 -- Draws the 8-cell info grid at the given y and returns the new y.  Used by

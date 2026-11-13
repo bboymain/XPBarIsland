@@ -17,7 +17,8 @@ $tag     = "v$version"
 Write-Host "Releasing $tag"
 
 # gh and git both use the active gh account; make the repo owner active.
-gh auth switch -u $owner 2>$null | Out-Null
+gh auth switch -u $owner
+if ($LASTEXITCODE -ne 0) { throw "Could not activate GitHub account $owner" }
 
 # Release notes: the CHANGELOG.md section for this version.
 $notes   = New-Object System.Collections.Generic.List[string]
@@ -40,7 +41,7 @@ $files   = New-Object System.Collections.Generic.List[System.IO.FileInfo]
 foreach ($d in @("Core", "Data", "Locale", "Media", "Settings", "UI")) {
     Get-ChildItem -LiteralPath (Join-Path $root $d) -File -Recurse | ForEach-Object { $files.Add($_) }
 }
-foreach ($f in @("XPBarIsland.toc", "README.md", "CHANGELOG.md", "logo.png")) {
+foreach ($f in @("XPBarIsland.toc", "README.md", "CHANGELOG.md", "logo.png", "THIRD_PARTY_NOTICES.txt")) {
     $files.Add((Get-Item -LiteralPath (Join-Path $root $f)))
 }
 foreach ($file in $files) {
@@ -61,8 +62,9 @@ try {
     git push
     git push origin $tag
 
-    gh release view $tag --repo $Repo *> $null
-    if ($LASTEXITCODE -eq 0) {
+    $releaseTags = @(gh release list --repo $Repo --limit 100 --json tagName --jq '.[].tagName')
+    if ($LASTEXITCODE -ne 0) { throw "Could not list GitHub releases" }
+    if ($releaseTags -contains $tag) {
         gh release upload $tag $zip --repo $Repo --clobber
     } else {
         $notesFile = Join-Path ([System.IO.Path]::GetTempPath()) "xpbar-release-notes.md"

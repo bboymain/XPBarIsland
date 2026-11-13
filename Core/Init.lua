@@ -164,6 +164,8 @@ ns.defaults = {
     sparkline    = true,
     questList    = true,
     showTurnInXP = true,
+    showNextAbilities = true,
+    showTrainingCosts = true,
     shareChannel = "Party",         -- Party | Guild | Say
     animations   = "Always",        -- Always | On hover only | Off
     feel         = "Springy",       -- Springy | Snappy | Smooth
@@ -231,7 +233,7 @@ function ns.InitDB()
     if type(DB.profile) ~= "table" then
         local profile = {}
         for k, v in pairs(DB) do
-            if k ~= "char" and k ~= "profile" then
+            if k ~= "char" and k ~= "profile" and k ~= "trainerCosts" then
                 profile[k] = v
                 DB[k] = nil
             end
@@ -239,6 +241,8 @@ function ns.InitDB()
         DB.profile = profile
     end
     if type(DB.char) ~= "table" then DB.char = {} end
+
+    if type(DB.trainerCosts) ~= "table" then DB.trainerCosts = {} end
 
     ns.db = DB.profile
     if ns.db.shape == nil then ns.db.posY = 12 end
