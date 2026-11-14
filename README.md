@@ -43,7 +43,7 @@ the gear on the island and the minimap button all open it.
 | Click a type chip | Switches between Experience, Reputation, Honor, Pet Exp, Skills |
 | Gear button on the island | Opens the settings window |
 | Minimap button, left-click | Opens the settings window |
-| Minimap button, right-click | Toggles move mode (drag the island sideways) |
+| Minimap button, right-click | Toggles move mode (drag the island anywhere on screen) |
 | `/xpbar` | Opens the settings window |
 | `/xpbar reset` | Resets session counters (xp/hr, session totals) |
 | `/xpbar share` | Posts your progress to chat |

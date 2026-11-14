@@ -1793,7 +1793,7 @@ function island:UpdateFade()
     self:StopCombatFade()
 
     -- Auto-hide: slide the island up off the top edge; a thin strip brings it back
-    local hy = (ns.db.mode == "Auto-hide" and not self.expanded) and (f:GetHeight() * (ns.PillOn() and 2 or 1) + ns.TopOffset() / self:CurrentScale()) or 0
+    local hy = (ns.db.mode == "Auto-hide" and not self.expanded and not ns.db.move) and math.max(0, f:GetHeight() * (ns.PillOn() and 2 or 1) + ns.TopOffset() / self:CurrentScale() - (ns.db.moveY or 0)) or 0
     if hy ~= self.hiddenTarget then
         self.hiddenTarget = hy
         if self.hideTween then ns.KillTween(self.hideTween); self.hideTween = nil end
@@ -1809,7 +1809,7 @@ function island:UpdateFade()
         end
     end
 
-    if ns.db.mode == "Auto-hide" and not self.expanded then
+    if ns.db.mode == "Auto-hide" and not self.expanded and not ns.db.move then
         f:SetAlpha(ns.PillOn() and 1 or 0)
         if self.hoverStrip then self.hoverStrip:Show() end
         return
@@ -1851,7 +1851,7 @@ end
 
 function island:ApplyPosition()
     local off = (ns.db.posX or 0) + (ns.db.posOffset or 0) + (self._shakeX or 0)
-    local offY = -ns.TopOffset() / self:CurrentScale() + (self.hiddenY or 0) + (self._dipY or 0) + (self._shakeY or 0)
+    local offY = (ns.db.moveY or 0) - ns.TopOffset() / self:CurrentScale() + (self.hiddenY or 0) + (self._dipY or 0) + (self._shakeY or 0)
     f:ClearAllPoints()
     f:SetPoint("TOP", UIParent, "TOP", off, offY)
 end
@@ -1999,7 +1999,7 @@ f:SetScript("OnMouseDown", function(_, button)
         dragging = true
         dragStartX, dragStartY = GetCursorPosition()
         dragStartPosX = ns.db.posX or 0
-        dragStartPosY = ns.db.posY or 12
+        dragStartPosY = ns.db.moveY or 0
     end
 end)
 
@@ -2053,10 +2053,9 @@ f:SetScript("OnUpdate", function(_, elapsed)
     if dragging and ns.db.move then
         local cx, cy = GetCursorPosition()
         local scale = f:GetEffectiveScale() or 1
-        -- free 2D placement: X to the right, Y up (the top anchor offset grows
-        -- upward, and the cursor's Y grows upward too)
+        -- Both axes use frame coordinates, including the parent's UI scale.
         ns.db.posX = dragStartPosX + (cx - dragStartX) / scale
-        ns.db.posY = math.max(0, math.min(60, dragStartPosY - (cy - dragStartY)))
+        ns.db.moveY = dragStartPosY + (cy - dragStartY) / scale
         island:ApplyPosition()
     end
 

@@ -2,6 +2,11 @@
 
 Every update to XPBar Island, in plain (and slightly caffeinated) English.
 
+## 1.0.18: Off the Rails
+
+* **Pick your spot:** Move mode now lets every shape move up, down, left and right. No more being stuck at the top!
+* **Stays put:** Your position saves with your profile. Reset position brings the island home.
+
 ## 1.0.17: The "Trainer Tab" Update
 
 * **Budget before you travel:** Upcoming spells now show training prices with coin icons, plus a Total for the whole level.

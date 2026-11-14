@@ -172,6 +172,7 @@ ns.defaults = {
     preset       = "Custom",
     activeType   = "xp",
     posX         = 0,
+    moveY        = 0,               -- free vertical placement, independent of Pill spacing
     shape        = "Attached",
     posY         = 12,
     minimap      = { hide = true, angle = 220 },   -- minimap button hidden by default

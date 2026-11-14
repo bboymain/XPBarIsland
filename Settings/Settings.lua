@@ -163,6 +163,7 @@ local function CreatePage(parent, width, height)
     apply:SetPoint("RIGHT", okay, "LEFT", -6, 0)
     local resetPos = W.Button(foot, "Reset position", function()
         ns.db.posX = 0
+        ns.db.moveY = 0
         ns.db.posY = 12
         ns.island:ApplyPosition()
     end)
@@ -718,6 +719,7 @@ local function applyProfile(name)
     local ok, err = pcall(function()
         ns.db.shape = p.shape or "Attached"
         ns.db.posY = p.shape and p.posY or 12
+        ns.db.moveY = p.moveY or 0
         for k, v in pairs(p) do
             if k ~= "posY" then ns.db[k] = deepCopy(v) end
         end
@@ -1276,7 +1278,7 @@ local function buildQuick()
     ns.Paint(fb, 0, 0, 0, 0.3)
     local resetS = W.Button(foot, "Reset session", function() if ns.session then ns.session:Reset() end; ns.MarkDirty() end)
     resetS:SetPoint("LEFT", foot, "LEFT", 12, 0)
-    local resetP = W.Button(foot, "Reset position", function() ns.db.posX = 0; ns.db.posY = 12; ns.db.posOffset = 0; if ns.island then ns.island:ApplyPosition() end end)
+    local resetP = W.Button(foot, "Reset position", function() ns.db.posX = 0; ns.db.moveY = 0; ns.db.posY = 12; ns.db.posOffset = 0; if ns.island then ns.island:ApplyPosition() end end)
     resetP:SetPoint("LEFT", resetS, "RIGHT", 6, 0)
     local contact = W.IconLink(foot, ns.Media.xIcon, ns.OpenContact, "Contact @mainlek on X.com (Twitter)", "Click to copy the link")
     contact:SetPoint("LEFT", resetP, "RIGHT", 14, 0)
@@ -1966,7 +1968,7 @@ function Studio:resetPage()
     local ok, err = pcall(function()
         if key == "Layout" then
             for _, k in ipairs({ "showName", "showRange", "showPercent", "showRested", "showRate", "showDots", "portrait" }) do qset(k, true) end
-            qset("width", 460); qset("barThickness", 12); qset("textSize", 100); qset("posOffset", 0); qset("posX", 0); qset("posY", 12); qset("shape", "Attached"); qset("font", "Theme")
+            qset("width", 460); qset("barThickness", 12); qset("textSize", 100); qset("posOffset", 0); qset("posX", 0); qset("moveY", 0); qset("posY", 12); qset("shape", "Attached"); qset("font", "Theme")
         elseif key == "Colors" then
             qset("trimColor", false); qset("barColor", false); qset("textAccent", false); qset("wowBar", "Azure")
         elseif key == "Minimal" then
